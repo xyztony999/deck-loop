@@ -19,7 +19,7 @@ import {
   SaveOutlined,
 } from '@ant-design/icons-vue'
 
-import { OUTLINE_NODE_MAX, OUTLINE_TITLE_MAX, type OutlineNode } from '../types'
+import { OUTLINE_NODE_MAX, OUTLINE_TITLE_MAX, normalizePageHint, type OutlineNode } from '../types'
 
 const props = defineProps<{
   nodes: OutlineNode[]
@@ -67,7 +67,7 @@ function addNode(): void {
   }
   commit([
     ...props.nodes,
-    { nodeId: genNodeId(), title: '', points: [], note: '', pageHint: '' },
+    { nodeId: genNodeId(), title: '', points: [], note: '' },
   ])
 }
 
@@ -139,8 +139,9 @@ function onNoteInput(index: number, v: string): void {
   patchNode(index, { note: v })
 }
 
-function onPageHintInput(index: number, v: string): void {
-  patchNode(index, { pageHint: v })
+function onPageHintInput(index: number, v: number | string | null): void {
+  // pageHint 为整数契约（服务端 OutlineNodeAO @IsInt）；InputNumber 中间态兜底清洗
+  patchNode(index, { pageHint: normalizePageHint(v) })
 }
 </script>
 
@@ -222,10 +223,14 @@ function onPageHintInput(index: number, v: string): void {
             placeholder="备注（可空）"
             @update:value="(v: string) => onNoteInput(i, v)"
           />
-          <a-input
+          <a-input-number
             :value="node.pageHint"
-            placeholder="页面提示（可空，如：图表页/对比页）"
-            @update:value="(v: string) => onPageHintInput(i, v)"
+            :min="1"
+            :precision="0"
+            :controls="false"
+            class="outline-pagehint"
+            placeholder="建议页数（可空）"
+            @update:value="(v: number | string | null) => onPageHintInput(i, v)"
           />
         </div>
       </div>
@@ -318,6 +323,10 @@ function onPageHintInput(index: number, v: string): void {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.outline-pagehint {
+  width: 100%;
 }
 
 .outline-add {

@@ -22,18 +22,20 @@ import TaskProgressCard from './components/TaskProgressCard.vue'
 import { useTaskProgress, type TaskProgressInfo } from './composables/useTaskProgress'
 import { buildGenWizardConfig, genTaskListConfig } from './gen.config'
 import {
+  sanitizeOutline,
+  validateOutline,
+  type OutlineNode,
+} from '@/services/outline'
+import {
   ASSET_IDS_MAX,
   LENGTH_OPTIONS,
   LENGTH_OPTION_DEFAULT,
   OUTLINE_AUTOSAVE_DELAY_MS,
-  OUTLINE_NODE_MAX,
-  OUTLINE_TITLE_MAX,
   TASK_STATUS,
   TASK_TYPE,
   isTerminalTaskStatus,
   type GenTaskCreateVO,
   type GenTaskDetailVO,
-  type OutlineNode,
 } from './types'
 
 // ---------------------------------------------------------------
@@ -272,27 +274,7 @@ function scheduleAutosave(): void {
   }, OUTLINE_AUTOSAVE_DELAY_MS)
 }
 
-/** 落盘前清洗：标题/要点去空白、过滤空要点 */
-function sanitizeOutline(nodes: OutlineNode[]): OutlineNode[] {
-  return nodes.map((n) => ({
-    nodeId: n.nodeId,
-    title: n.title.trim(),
-    points: (n.points ?? []).map((p) => p.trim()).filter((p) => p !== ''),
-    note: (n.note ?? '').trim(),
-    pageHint: (n.pageHint ?? '').trim(),
-  }))
-}
-
-/** 大纲校验（api-generation §4.4 outline/save：节点 1~50、title ≤50） */
-function validateOutline(nodes: OutlineNode[]): string | null {
-  if (nodes.length === 0) return '大纲不能为空，请先生成或添加节点'
-  if (nodes.length > OUTLINE_NODE_MAX) return `大纲节点最多 ${OUTLINE_NODE_MAX} 个`
-  for (const n of nodes) {
-    if (n.title.trim() === '') return '存在未填写标题的节点'
-    if (n.title.length > OUTLINE_TITLE_MAX) return '节点标题不能超过 50 字'
-  }
-  return null
-}
+/** 大纲校验与落盘清洗：services/outline.ts 纯函数（契约单一来源） */
 
 async function saveOutlineNow(opts: { notify?: boolean } = {}): Promise<void> {
   if (saveTimer != null) {

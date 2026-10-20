@@ -116,7 +116,19 @@ async function next(): Promise<void> {
       return
     }
   }
-  if (step.beforeNext && !(await step.beforeNext(formData))) return
+  if (step.beforeNext) {
+    // beforeNext 抛异常不得静默卡死向导（2026-10-20 教训：脏数据 TypeError
+    // 使「下一步」无任何反馈）；显式报错并停留本步
+    let ok: boolean
+    try {
+      ok = await step.beforeNext(formData)
+    } catch (err) {
+      console.error('[DlCardPage] beforeNext 执行异常', err)
+      message.error('步骤校验异常，请稍后重试')
+      return
+    }
+    if (!ok) return
+  }
   if (isLast.value) {
     await doSubmit()
     return

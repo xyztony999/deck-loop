@@ -9,18 +9,15 @@ import type { OperItem } from '@/engine'
 
 // ---------------------------------------------------------------
 // 大纲（Outline 值对象：写入 Deck.draftOutline 的节点树）
+// 契约与纯函数单一来源在 services/outline.ts（pageHint 为整数契约）
 // ---------------------------------------------------------------
 
-/** 大纲节点（api-generation.md §4.3 outline/save AO） */
-export interface OutlineNode {
-  nodeId: string
-  /** ≤50 字（INV 校验：节点 1~50、title ≤50） */
-  title: string
-  /** 要点列表（编辑态按行拆分，保存前过滤空行） */
-  points: string[]
-  note?: string
-  pageHint?: string
-}
+export type { OutlineNode } from '@/services/outline'
+export {
+  OUTLINE_NODE_MAX,
+  OUTLINE_TITLE_MAX,
+  normalizePageHint,
+} from '@/services/outline'
 
 // ---------------------------------------------------------------
 // 任务（GenerationTask）
@@ -97,9 +94,6 @@ export interface GenTaskDetailVO extends GenTaskRow {
 export const EXTRA_REQUIREMENT_MAX = 500
 /** 步骤①：素材引用 ≤10（启用态） */
 export const ASSET_IDS_MAX = 10
-/** 步骤②：大纲节点 1~50；节点标题 ≤50 字 */
-export const OUTLINE_NODE_MAX = 50
-export const OUTLINE_TITLE_MAX = 50
 /** 步骤②：大纲自动保存 debounce 2s（PageSpec generation.md §4） */
 export const OUTLINE_AUTOSAVE_DELAY_MS = 2000
 

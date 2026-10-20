@@ -14,6 +14,7 @@ const { consumeSync, readSyncSnapshot, syncStorageKey } = await load('syncCore')
 const { submitWithConfirmation } = await load('exportSubmit')
 const { mapBatches } = await load('batches')
 const { canLogout } = await load('logoutGuard')
+const { normalizePageHint, sanitizeOutline, validateOutline } = await load('outline')
 
 function memoryStorage() {
   const values = new Map()
@@ -129,4 +130,32 @@ test('sync detects stalled positions and completes more than 50 pages without fa
   })
   assert.equal(count, 51)
   assert.equal(total, 51)
+})
+
+// 大纲保存链路（api-generation §4.4：pageHint 整数契约）
+// 2026-10-20 教训：MOCK 产物 pageHint 为 number，旧 sanitize 按 string .trim()
+// 抛 TypeError → beforeNext 未捕获 → 向导「下一步」静默卡死
+test('sanitizeOutline accepts contract-numeric pageHint from MOCK results without throwing', () => {
+  const out = sanitizeOutline([
+    { nodeId: 'n1', title: ' 模拟大纲章节 ', points: [' 要点一 ', '', '要点二'], note: ' MOCK 渠道生成 ', pageHint: 1 },
+  ])
+  assert.deepEqual(out, [
+    { nodeId: 'n1', title: '模拟大纲章节', points: ['要点一', '要点二'], note: 'MOCK 渠道生成', pageHint: 1 },
+  ])
+})
+
+test('normalizePageHint coerces digits/strings and drops junk to undefined', () => {
+  assert.equal(normalizePageHint(1), 1)
+  assert.equal(normalizePageHint(2.4), 2)
+  assert.equal(normalizePageHint('3'), 3)
+  assert.equal(normalizePageHint(''), undefined)
+  assert.equal(normalizePageHint('abc'), undefined)
+  assert.equal(normalizePageHint(0), undefined)
+  assert.equal(normalizePageHint(null), undefined)
+})
+
+test('validateOutline still enforces node count and title rules', () => {
+  assert.match(validateOutline([]), /大纲不能为空/)
+  assert.match(validateOutline([{ nodeId: 'n1', title: 'x'.repeat(51), points: [] }]), /50/)
+  assert.equal(validateOutline([{ nodeId: 'n1', title: 'ok', points: [] }]), null)
 })

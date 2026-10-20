@@ -50,12 +50,15 @@ PIDFILE="${BT_PIDS_DIR}/$(basename "$SCRIPT" .sh).pid"
 log "重启: ${SCRIPT}"
 
 # 健康探测（复用：真实 DB 往返 = 错误密码登录必须回 BIZ_AUTH_CREDENTIALS 信封。
-# 教训：只断言 HTTP 200 是假绿——异常过滤器对 404/500 也回 200）
+# 教训：只断言 HTTP 200 是假绿——异常过滤器对 404/500 也回 200；
+# 2026-10-20 血泪：curl | grep -q 直管道在 pipefail 下恒假阴性——grep 首匹配
+# 即退出触发 curl SIGPIPE(141)，匹配成功也判失败，健康应用被误判数轮部署）
 health_probe() {
-    curl -s -m 3 -X POST "http://127.0.0.1:${HEALTH_PORT}/auth/account/login" \
+    local body
+    body="$(curl -s -m 3 -X POST "http://127.0.0.1:${HEALTH_PORT}/auth/account/login" \
         -H 'Content-Type: application/json' \
-        -d '{"email":"health@check","password":"x"}' 2>/dev/null \
-        | grep -q 'BIZ_AUTH_CREDENTIALS'
+        -d '{"email":"health@check","password":"x"}' 2>/dev/null || true)"
+    [[ "$body" == *BIZ_AUTH_CREDENTIALS* ]]
 }
 
 restart_app() {

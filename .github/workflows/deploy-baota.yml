@@ -77,6 +77,8 @@ jobs:
             fi
             APP_DIR=/www/wwwroot/deck-loop
             cd "$APP_DIR"
+            # 宝塔会把站点目录属主修正为 www——root 跑 git 需 safe.directory 例外（幂等）
+            git config --global --add safe.directory "$APP_DIR"
             # 阿里云→GitHub 慢性抖动（Failure when receiving data / GnuTLS -110 实测）：
             # fetch+checkout+pull 整体重试 4 次
             PULL_OK=0

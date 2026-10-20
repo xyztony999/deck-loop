@@ -1,35 +1,13 @@
 import 'reflect-metadata';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+// 副作用导入必须在 AppModule 之前：app.module 顶层即读 process.env
+// （MongooseModule.forRoot），import 求值先于本文件任何语句（见 load-env.ts 头注）
+import './load-env';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 /** 默认端口 8080（与宝塔 Nginx 反代配置对齐，env PORT 可覆盖） */
 const DEFAULT_PORT = 8080;
-
-/**
- * 零依赖 .env 加载（NestJS 不自动读 .env；宝塔 Node 项目/PM2/node 直启统一生效）。
- * 真实进程环境变量优先（override=false）；按 dist/main.js 的上级（工程根）与
- * process.cwd() 两处探测，先命中先加载；Node 20+ 的 --env-file 不受影响。
- */
-function loadDotEnv(): void {
-  const candidates = [resolve(__dirname, '../.env'), resolve(process.cwd(), '.env')];
-  for (const file of candidates) {
-    if (!existsSync(file)) continue;
-    for (const rawLine of readFileSync(file, 'utf8').split(/\r?\n/)) {
-      const line = rawLine.trim();
-      if (line === '' || line.startsWith('#')) continue;
-      const eq = line.indexOf('=');
-      if (eq <= 0) continue;
-      const key = line.slice(0, eq).trim();
-      const value = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
-      if (process.env[key] === undefined) process.env[key] = value;
-    }
-    return;
-  }
-}
-loadDotEnv();
 
 export async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);

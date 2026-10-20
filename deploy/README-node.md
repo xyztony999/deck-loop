@@ -27,7 +27,9 @@
 # 本机打包（不含 node_modules）
 cd server-node && npm run build   # 确认 dist/ 最新
 tar --exclude node_modules --exclude .git -czf ../deck-node.tgz .
-# 上传 deck-node.tgz 到服务器 /opt/deck-loop-node/ 后解压
+# 部署包获取：GitHub 仓库 → Actions → 最新 CI 运行（main push）→ Artifacts
+# 下载 deck-loop-backend-deploy（deck-node-<sha>.tgz，三门禁全绿才会产出）
+# 上传到服务器 /opt/deck-loop-node/ 后解压
 cd /opt/deck-loop-node && npm ci --omit=dev
 ```
 

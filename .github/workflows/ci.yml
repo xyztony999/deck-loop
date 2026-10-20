@@ -56,6 +56,39 @@ jobs:
       - run: pnpm build
       - run: pnpm test
 
+  package:
+    name: 后端部署包（BT 服务器 artifact）
+    # 三门禁全绿才产包（坏的构建不给部署物）；仅 main push 触发
+    needs: [backend, client, tauri]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: server-node/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: server-node
+      - run: npm run build
+        working-directory: server-node
+      - name: 组装部署包（dist + package.json + lockfile + env 模板）
+        run: |
+          mkdir -p bundle
+          cp -r server-node/dist bundle/dist
+          cp server-node/package.json server-node/pnpm-lock.yaml bundle/
+          cp deploy/deck-loop.env.example bundle/
+          tar -czf "deck-node-${GITHUB_SHA::7}.tgz" -C bundle .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deck-loop-backend-deploy
+          path: deck-node-*.tgz
+          if-no-files-found: error
+
   tauri:
     name: 桌面壳（cargo check · WebView2 COM）
     runs-on: windows-latest

@@ -61,9 +61,9 @@ log "新进程 pid=$(cat "$PIDFILE" 2>/dev/null || echo '?')"
 
 # 健康检查（真实 DB 往返：错误密码登录 → 必须回 BIZ_AUTH_CREDENTIALS 信封。
 # 教训：只断言 HTTP 200 是假绿——异常过滤器对 404/500 也回 200；
-# 2026-10-20 教训：低配机启动后 Mongo 认证握手有 ~30s 未就绪窗口且自愈，
-# 30×2s 循环恰在自愈前耗尽——放宽到 60×3s）
-for i in $(seq 1 60); do
+# 2026-10-20 教训×2：低配机部署窗口 tar+chown+启动并发压满磁盘/CPU，驱动
+# Mongo 认证握手可拖 3~4 分钟才就绪（此后稳定），60×3s 仍被实测击穿 → 90×3s）
+for i in $(seq 1 90); do
     BODY="$(curl -s -m 3 -X POST "http://127.0.0.1:${HEALTH_PORT}/auth/account/login"         -H 'Content-Type: application/json' -d '{"email":"health@check","password":"x"}' || true)"
     if echo "$BODY" | grep -q 'BIZ_AUTH_CREDENTIALS'; then
         log "健康检查通过（DB 往返确认）"; log "======== 部署完成 ========"; exit 0

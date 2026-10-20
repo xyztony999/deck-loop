@@ -119,7 +119,7 @@ jobs:
         working-directory: client/src-tauri
 
   deploy:
-    name: 部署（宝塔服务器 /www/wwwroot/deck-loop）
+    name: 部署（宝塔服务器 · systemd deck-loop.service）
     # 部署包已产出（=三门禁全绿）才部署；仅 main push
     needs: package
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -161,33 +161,24 @@ jobs:
             tar --no-same-owner -xzf /tmp/deck-loop-deploy/deck-node-*.tgz -C "$DEPLOY_DIR"
             rm -f /tmp/deck-loop-deploy/deck-node-*.tgz
             chown -R $APP_USER:$APP_USER "$DEPLOY_DIR/dist" "$DEPLOY_DIR/node_modules"
-            # 重启：杀进程 → 宝塔面板守护自动拉起新代码；兜底手动拉起
-            pkill -u $APP_USER -f "dist/main.js" || true
+            # 重启（systemd 接管：deck-loop.service，User=www，Restart=always）
+            systemctl restart deck-loop
             UP=0
-            for i in $(seq 1 25); do
+            for i in $(seq 1 30); do
               sleep 1
               CODE=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/auth/login -H 'Content-Type: application/json' -d '{"email":"ci@health.check","password":"x"}' || true)
               [ "$CODE" = "200" ] && UP=1 && break
             done
             if [ "$UP" != "1" ]; then
-              echo "宝塔未自动拉起，兜底手动启动…"
-              su -s /bin/bash $APP_USER -c "cd $DEPLOY_DIR && nohup node dist/main.js >> /www/wwwlogs/deck-loop-cd.log 2>&1 < /dev/null &"
-              for i in $(seq 1 20); do
-                sleep 1
-                CODE=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/auth/login -H 'Content-Type: application/json' -d '{"email":"ci@health.check","password":"x"}' || true)
-                [ "$CODE" = "200" ] && UP=1 && break
-              done
-            fi
-            if [ "$UP" != "1" ]; then
               echo "健康检查失败，回滚最近备份"
               LATEST=$(ls -t "$BACKUP_DIR"/pre-*.tgz 2>/dev/null | head -1)
               if [ -n "$LATEST" ]; then
-                pkill -u $APP_USER -f "dist/main.js" || true
                 tar --no-same-owner -xzf "$LATEST" -C "$DEPLOY_DIR"
                 chown -R $APP_USER:$APP_USER "$DEPLOY_DIR/dist" "$DEPLOY_DIR/node_modules"
-                su -s /bin/bash $APP_USER -c "cd $DEPLOY_DIR && nohup node dist/main.js >> /www/wwwlogs/deck-loop-cd.log 2>&1 < /dev/null &"
+                systemctl restart deck-loop
                 sleep 5
               fi
+              systemctl is-active --quiet deck-loop || journalctl -u deck-loop -n 30 --no-pager
               exit 1
             fi
-            echo "部署完成，健康检查 200"
+            echo "部署完成，健康检查 200"; systemctl is-active deck-loop

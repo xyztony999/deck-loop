@@ -30,10 +30,10 @@ jobs:
         working-directory: server-node
       - run: pnpm install --prod --frozen-lockfile
         working-directory: server-node
-      - name: 组装部署包
+      - name: 组装部署包（工作区内相对路径，scp-action 的 glob 以仓库为根）
         run: |
-          mkdir -p /tmp/deck-loop-deploy
-          tar -czf "/tmp/deck-loop-deploy/deck-node-${GITHUB_SHA::7}.tgz" \
+          mkdir -p bundle-out
+          tar -czf "bundle-out/deck-node-${GITHUB_SHA::7}.tgz" \
             -C server-node dist node_modules package.json
       - name: 上传部署包
         uses: appleboy/scp-action@v0.1.7
@@ -42,9 +42,9 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: /tmp/deck-loop-deploy/deck-node-*.tgz
-          target: /tmp
-          strip_components: 2
+          source: bundle-out/deck-node-*.tgz
+          target: /tmp/deck-loop-deploy
+          strip_components: 1
       - name: 部署（拉码 + 解包 + 宝塔脚本重启 + 健康检查）
         uses: appleboy/ssh-action@v1.2.2
         with:

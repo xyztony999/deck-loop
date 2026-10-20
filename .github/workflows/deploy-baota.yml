@@ -70,7 +70,8 @@ jobs:
             fi
             APP_DIR=/www/wwwroot/deck-loop
             cd "$APP_DIR"
-            git fetch origin
+            # 阿里云→GitHub 瞬时抖动重试（Failure when receiving data 实测）
+            for i in 1 2 3; do git fetch origin && break; echo "git fetch 重试 $i"; sleep 5; done
             git checkout main
             git pull --ff-only origin main
             bash "${APP_DIR}/deploy/baota/deploy.sh"

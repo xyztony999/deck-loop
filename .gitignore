@@ -16,6 +16,8 @@ client/src-tauri/target/
 # 环境与密钥（永不入库）
 .env
 .env.*
+# 模板例外（.env.example 是配置文档，需入库；.env.local 等真实配置仍被忽略）
+!.env.example
 *.local
 .tmp-import/
 deploy/*.env

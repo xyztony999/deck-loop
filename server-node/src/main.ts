@@ -37,6 +37,11 @@ export async function bootstrap(): Promise<void> {
   // 全局校验管道：白名单剥离未知字段 + 类型变换（NR-10）
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
+  // 跨域放行：/api 类请求经 Web 代理同源无 CORS，但素材限时 URL（/files）
+  // 与导出下载 URL 是签发给客户端直连的绝对地址（Tauri WebView / dev 5173），
+  // 文件流响应必须带 CORS 头才能被 fetch/<img> 消费；鉴权靠 token/HMAC，与源无关
+  app.enableCors();
+
   // 优雅停机（SIGTERM/SIGINT 时关闭 Mongo 连接等资源）
   app.enableShutdownHooks();
 

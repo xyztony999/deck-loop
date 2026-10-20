@@ -13,7 +13,7 @@
  *   AssetStorageProperties
  */
 import { Injectable } from '@nestjs/common';
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import {
@@ -118,6 +118,36 @@ export class AssetStorageService {
   /** 签名 URL 对应的过期时刻（epoch 毫秒，OHS expiresAt 组装用） */
   expiresAtFor(ttlSeconds: number = this.ttlSeconds): number {
     return (Math.floor(Date.now() / 1000) + ttlSeconds) * 1000;
+  }
+
+  /**
+   * 校验限时 URL 凭证并返回文件绝对路径（GET /files 消费；与 signUrl 对偶）。
+   * 校验链：storageKey 白名单形态 → expires 正整数且未过期 → HMAC 常量时间
+   * 比较 → 解析路径必须仍在存储根内。任一失败抛 Error（经全局过滤器转
+   * 错误信封；<img>/fetch 消费方按非图像响应自然失败）。
+   */
+  verifySigned(storageKey: string, expires: string, sign: string): string {
+    if (!STORAGE_KEY_PATTERN.test(storageKey)) {
+      throw new Error('素材访问 storageKey 非白名单格式（疑似路径穿越）');
+    }
+    const exp = Number.parseInt(String(expires ?? ''), 10);
+    if (!Number.isInteger(exp) || exp <= 0) {
+      throw new Error('素材访问凭证无效');
+    }
+    if (exp * 1000 < Date.now()) {
+      throw new Error('素材访问凭证已过期');
+    }
+    const expected = Buffer.from(this.hmacHex(`${storageKey}:${exp}`), 'utf8');
+    const actual = Buffer.from(String(sign ?? ''), 'utf8');
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+      throw new Error('素材访问签名不匹配');
+    }
+    const rootDir = resolve(this.localDir);
+    const target = join(rootDir, storageKey);
+    if (!target.startsWith(rootDir + sep)) {
+      throw new Error('素材访问路径越界');
+    }
+    return target;
   }
 
   private hmacHex(data: string): string {

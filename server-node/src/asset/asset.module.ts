@@ -26,6 +26,7 @@ import {
   PromptTemplateOperResolver,
 } from './asset.oper-resolver';
 import { AssetStorageService } from './asset.storage';
+import { AssetFilesController } from './asset.files.controller';
 import { Asset, AssetSchema } from './schemas/asset.schema';
 import { BrandKit, BrandKitSchema } from './schemas/brand-kit.schema';
 import {
@@ -54,6 +55,8 @@ import {
     PromptTemplateController,
     AssetSelectController,
     AssetDictController,
+    // 限时签名 URL 文件流端点（GET /files；无会话，HMAC 凭证即授权）
+    AssetFilesController,
   ],
   providers: [
     // 仓储

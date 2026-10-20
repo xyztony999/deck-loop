@@ -20,7 +20,9 @@ die() { log "错误: $*"; exit 1; }
 exec 9>"${APP_DIR}/.deploy.lock"
 flock -w 30 9 || die "部署锁等待超时（另一部署进行中或锁被长驻进程误持）"
 
-ls "${BUNDLE_DIR}"/deck-node-*.tgz >/dev/null 2>&1 || die "缺少部署包（${BUNDLE_DIR}/deck-node-*.tgz）"
+# 取最新一个包（历史失败会残留多个；通配符直传 tar 会把旧包当成员名崩掉）
+BUNDLE="$(ls -t "${BUNDLE_DIR}"/deck-node-*.tgz 2>/dev/null | head -1)"
+[[ -n "$BUNDLE" ]] || die "缺少部署包（${BUNDLE_DIR}/deck-node-*.tgz）"
 
 find_bt_script() {
     local name f
@@ -37,7 +39,7 @@ log "======== Deck-Loop 宝塔部署（产物模式）========"
 
 # 解包（--no-same-owner 防 runner 数字 uid 映射错乱；先清旧目录防陈旧残留）
 rm -rf "${APP_DIR}/server-node/dist" "${APP_DIR}/server-node/node_modules"
-tar --no-same-owner -xzf "${BUNDLE_DIR}"/deck-node-*.tgz -C "${APP_DIR}/server-node"
+tar --no-same-owner -xzf "$BUNDLE" -C "${APP_DIR}/server-node"
 rm -f "${BUNDLE_DIR}"/deck-node-*.tgz
 chown -R "${APP_USER}:${APP_USER}" "${APP_DIR}/server-node/dist" "${APP_DIR}/server-node/node_modules"
 log "产物解包完成: $(ls "${APP_DIR}/server-node/dist" | head -1) 等"

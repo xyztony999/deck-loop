@@ -1,0 +1,8 @@
+{
+  "name": "deck-loop-server-launcher",
+  "private": true,
+  "description": "宝塔 Node 项目启动垫片：实际代码与依赖在 server-node/（node 按 main.js 所在目录解析 node_modules；.env 由 main.ts 加载器按 cwd 兜底）",
+  "scripts": {
+    "start": "node server-node/dist/main.js"
+  }
+}

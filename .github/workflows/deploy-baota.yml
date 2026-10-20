@@ -1,10 +1,9 @@
 name: Deploy to Baota
 
-# 宝塔生产部署（参考 debateTimer deploy-baota 模式）：
-# 服务器 /www/wwwroot/deck-loop 为本仓库 git checkout，部署逻辑版本化于
-# deploy/baota/deploy.sh（拉码 → 服务器端构建 → 宝塔 Node 项目脚本重启 → 健康检查）。
-# 管理权归宝塔面板：进程由面板启动脚本（vhost/scripts/deck_loop.sh）拉起，
-# 面板内可见/可停/可手动重启；本工作流只做 SSH 触发。
+# 宝塔生产部署（debateTimer 模式 + 本仓内存现实修正）：
+# 构建/测试在 runner 完成（服务器 1.6G 内存扛不住 pnpm install+tsc，2026-10-20 实证
+# OOM 僵死）→ 产物（dist + 生产 node_modules）scp 到服务器 → deploy.sh 解包 +
+# 宝塔 Node 项目启动脚本重启（vhost/scripts/deck_loop.sh，管理权归面板）+ 健康检查。
 on:
   workflow_dispatch:
   push:
@@ -15,17 +14,54 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ vars.BAOTA_DEPLOY == 'true' }}
     steps:
-      - name: Deploy over SSH
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: server-node/pnpm-lock.yaml
+      # runner 构建 + 裁剪纯生产依赖 + 打包
+      - run: pnpm install --frozen-lockfile
+        working-directory: server-node
+      - run: npm run build
+        working-directory: server-node
+      - run: pnpm install --prod --frozen-lockfile
+        working-directory: server-node
+      - name: 组装部署包
+        run: |
+          mkdir -p /tmp/deck-loop-deploy
+          tar -czf "/tmp/deck-loop-deploy/deck-node-${GITHUB_SHA::7}.tgz" \
+            -C server-node dist node_modules package.json
+      - name: 上传部署包
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: /tmp/deck-loop-deploy/deck-node-*.tgz
+          target: /tmp
+          strip_components: 2
+      - name: 部署（拉码 + 解包 + 宝塔脚本重启 + 健康检查）
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
           script_stop: true
-          command_timeout: 15m
+          command_timeout: 10m
           script: |
             set -euo pipefail
+            # 一次性兜底：无 swap 则加 1G（防再现全机僵死）
+            if ! swapon --show 2>/dev/null | grep -q .; then
+              fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+              grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+              echo "swap 已创建"
+            fi
             APP_DIR=/www/wwwroot/deck-loop
             cd "$APP_DIR"
             git fetch origin

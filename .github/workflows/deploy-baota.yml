@@ -9,6 +9,13 @@ on:
   push:
     branches: [main]
 
+# 连续 push 必须串行且只留最新：flock 只防脚本并发，防不了"慢的旧部署
+# 后落盘覆盖新 dist"（2026-10-20 实证：b38db34 部署慢跑 9m13s，在
+# 7a8437d 部署完成 5 分钟后把旧包解压覆盖了新 dist）
+concurrency:
+  group: baota-deploy
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

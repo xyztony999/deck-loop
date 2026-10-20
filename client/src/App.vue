@@ -1,0 +1,162 @@
+<script setup lang="ts">
+/**
+ * 应用根组件：登录页全屏裸渲染；其余路由为侧边导航布局骨架
+ * （创作物 / 素材 / 设置 等主导航占位出口）。
+ */
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import {
+  AppstoreOutlined,
+  FolderOutlined,
+  ExportOutlined,
+  SettingOutlined,
+  LogoutOutlined,
+} from '@ant-design/icons-vue'
+import type { Component } from 'vue'
+
+import { useAppearanceStore } from '@/stores/appearance'
+import { useAuthStore } from '@/stores/auth'
+import { getDlTheme } from '@/styles/theme'
+import { useSyncStore } from '@/stores/sync'
+import { useLogout } from '@/composables/useLogout'
+
+const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+const appearance = useAppearanceStore()
+const sync = useSyncStore()
+const { confirmLogout, loggingOut } = useLogout()
+
+const themeConfig = computed(() => getDlTheme(appearance.isDark))
+const isBare = computed(() => route.meta.bare === true)
+const selectedKeys = computed<string[]>(() => [route.path])
+
+interface NavItem {
+  key: string
+  label: string
+  icon: Component
+}
+
+const navItems: NavItem[] = [
+  { key: '/deck', label: '创作物', icon: AppstoreOutlined },
+  { key: '/assets', label: '素材库', icon: FolderOutlined },
+  { key: '/deliver', label: '导出交付', icon: ExportOutlined },
+  { key: '/settings', label: '设置', icon: SettingOutlined },
+]
+
+const collapsed = ref(false)
+
+function onNavClick(e: { key: string | number }): void {
+  void router.push(String(e.key))
+}
+
+</script>
+
+<template>
+  <a-config-provider :theme="themeConfig">
+    <!-- 登录等裸页 -->
+    <router-view v-if="isBare" :key="`${sync.accountId}:${sync.revision}`" />
+
+    <!-- 侧边导航布局骨架 -->
+    <a-layout v-else class="dl-layout">
+      <a-layout-sider v-model:collapsed="collapsed" :width="200" class="dl-sider">
+        <div class="dl-logo">
+          <span v-if="!collapsed">Deck-Loop</span>
+          <span v-else>DL</span>
+        </div>
+        <a-menu
+          mode="inline"
+          :selected-keys="selectedKeys"
+          @click="onNavClick"
+        >
+          <a-menu-item v-for="item in navItems" :key="item.key">
+            <component :is="item.icon" />
+            <span>{{ item.label }}</span>
+          </a-menu-item>
+        </a-menu>
+        <div class="dl-sider-footer">
+          <a-button
+            v-if="auth.isLoggedIn"
+            type="text"
+            size="small"
+            :loading="loggingOut"
+            @click="confirmLogout"
+          >
+            <LogoutOutlined />
+            <span v-if="!collapsed">退出登录</span>
+          </a-button>
+        </div>
+      </a-layout-sider>
+      <a-layout>
+        <a-layout-header class="dl-header">
+          <span class="dl-header-title">{{ String(route.meta.title ?? '') }}</span>
+          <span class="dl-header-right">
+            <span v-if="auth.nickname" class="dl-header-user">{{ auth.nickname }}</span>
+            <!-- settings.md §1：主窗口右上角设置入口 -->
+            <a-button type="text" size="small" @click="router.push('/settings')">
+              <SettingOutlined />
+            </a-button>
+          </span>
+        </a-layout-header>
+        <a-layout-content class="dl-content">
+          <router-view :key="`${sync.accountId}:${sync.revision}`" />
+        </a-layout-content>
+      </a-layout>
+    </a-layout>
+  </a-config-provider>
+</template>
+
+<style scoped>
+.dl-layout {
+  height: 100%;
+}
+
+.dl-logo {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--dl-title-color);
+  border-bottom: 1px solid var(--dl-border-light);
+}
+
+.dl-sider-footer {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.dl-header {
+  background: var(--dl-header-bg);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--dl-header-shadow);
+}
+
+.dl-header-title {
+  font-weight: 600;
+  color: var(--dl-title-color);
+}
+
+.dl-header-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dl-header-user {
+  color: var(--dl-text-secondary);
+  font-size: 13px;
+}
+
+.dl-content {
+  overflow-y: auto;
+}
+</style>

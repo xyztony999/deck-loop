@@ -1,0 +1,13 @@
+# 依赖与构建产物（外层仓库 .gitignore 已含 client/dist、client/src-tauri/target）
+node_modules/
+dist/
+*.local
+.env
+.env.*
+
+# Tauri 构建产物
+src-tauri/target/
+src-tauri/gen/
+
+# 自动生成
+components.d.ts

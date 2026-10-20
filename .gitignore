@@ -1,0 +1,21 @@
+node_modules/
+dist/
+target/
+*.pyc
+.DS_Store
+
+# 桌面端构建产物
+client/dist/
+client/src-tauri/target/
+
+# 本地 AI 工具状态
+.zcode/
+.mimosa/
+.workflow/
+
+# 环境与密钥（永不入库）
+.env
+.env.*
+*.local
+.tmp-import/
+deploy/*.env

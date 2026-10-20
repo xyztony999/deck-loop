@@ -1,0 +1,63 @@
+{
+  "apiVersion": 1,
+  "active": "deck-loop",
+  "stacks": [
+    "node-nestjs-mongo",
+    "vue3-engine"
+  ],
+  "mounts": [
+    {
+      "layer": "node-nestjs-mongo",
+      "src": "profiles/node-nestjs-mongo/skills/node-specs",
+      "dst": ".claude/skills/node-specs",
+      "mode": "copy"
+    },
+    {
+      "layer": "node-nestjs-mongo",
+      "src": "profiles/node-nestjs-mongo/agents/orchestrator.md",
+      "dst": ".claude/agents/orchestrator.md",
+      "mode": "copy"
+    },
+    {
+      "layer": "node-nestjs-mongo",
+      "src": "profiles/node-nestjs-mongo/agents/init.md",
+      "dst": ".claude/agents/init.md",
+      "mode": "copy"
+    },
+    {
+      "layer": "node-nestjs-mongo",
+      "src": "profiles/node-nestjs-mongo/rules/node-rules.md",
+      "dst": ".claude/rules/node-rules.md",
+      "mode": "copy"
+    },
+    {
+      "layer": "vue3-engine",
+      "src": "profiles/vue3-engine/skills/frontend-specs",
+      "dst": ".claude/skills/frontend-specs",
+      "mode": "copy"
+    },
+    {
+      "layer": "vue3-engine",
+      "src": "profiles/vue3-engine/agents/frontend-orchestrator.md",
+      "dst": ".claude/agents/frontend-orchestrator.md",
+      "mode": "copy"
+    },
+    {
+      "layer": "vue3-engine",
+      "src": "profiles/vue3-engine/rules/frontend-rules.md",
+      "dst": ".claude/rules/frontend-rules.md",
+      "mode": "copy"
+    },
+    {
+      "layer": "vue3-engine",
+      "src": "profiles/vue3-engine/rules/selfcheck.md",
+      "dst": ".claude/rules/selfcheck.md",
+      "mode": "copy"
+    }
+  ],
+  "claudemd_imports": [
+    "@profiles/deck-loop/CLAUDE.md"
+  ],
+  "created_with": "engine-cli 0.4.0",
+  "ts": "2026-10-08T16:04:53.096Z"
+}

@@ -1,0 +1,8 @@
+{
+  "env": {
+    "ACTIVE_PROFILE": "deck-loop",
+    "ACTIVE_STACKS": "node-nestjs-mongo,vue3-engine",
+    "BACKEND_ROOT": "D:/Project/deck-loop/server-node",
+    "FRONTEND_ROOT": "D:/Project/deck-loop/client"
+  }
+}

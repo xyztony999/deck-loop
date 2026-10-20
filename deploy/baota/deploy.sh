@@ -62,6 +62,11 @@ restart_app() {
     [[ -f "$PIDFILE" ]] && kill "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null || true
     pkill -u "${APP_USER}" -f "${APP_DIR}/server-node/dist/main.js" 2>/dev/null || true
     pkill -u "${APP_USER}" -f "npm run start" 2>/dev/null || true
+    sleep 3
+    # 病态进程 shutdownHooks 可卡在已损坏的 Mongo 连接池上不响应 TERM——
+    # KILL 兜底，确保新旧进程绝不并存（双 node 常驻是 1.6G 机的内存红线）
+    pkill -9 -u "${APP_USER}" -f "${APP_DIR}/server-node/dist/main.js" 2>/dev/null || true
+    pkill -9 -u "${APP_USER}" -f "npm run start" 2>/dev/null || true
     sleep 1
     # 9>&-：剥离部署锁 fd——否则长驻应用继承锁句柄，后续部署全部误判占用（debateTimer 同款教训）
     su -s /bin/bash "${APP_USER}" -c "bash '${SCRIPT}'" 9>&- || true
@@ -73,40 +78,17 @@ restart_app() {
 
 restart_app
 
-# 健康探测（复用：真实 DB 往返 = 错误密码登录必须回 BIZ_AUTH_CREDENTIALS 信封。
-# 教训：只断言 HTTP 200 是假绿——异常过滤器对 404/500 也回 200）
-health_probe() {
-    curl -s -m 3 -X POST "http://127.0.0.1:${HEALTH_PORT}/auth/account/login" \
-        -H 'Content-Type: application/json' \
-        -d '{"email":"health@check","password":"x"}' 2>/dev/null \
-        | grep -q 'BIZ_AUTH_CREDENTIALS'
-}
-
-restart_app() {
-    [[ -f "$PIDFILE" ]] && kill "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null || true
-    pkill -u "${APP_USER}" -f "${APP_DIR}/server-node/dist/main.js" 2>/dev/null || true
-    pkill -u "${APP_USER}" -f "npm run start" 2>/dev/null || true
-    sleep 1
-    # 9>&-：剥离部署锁 fd——否则长驻应用继承锁句柄，后续部署全部误判占用（debateTimer 同款教训）
-    su -s /bin/bash "${APP_USER}" -c "bash '${SCRIPT}'" 9>&- || true
-    sleep 2
-    PID="$(pgrep -u "${APP_USER}" -f 'dist/main.js' | head -1 || true)"
-    [[ -n "$PID" ]] && echo "$PID" > "$PIDFILE" 2>/dev/null || true
-    log "新进程 pid=$(cat "$PIDFILE" 2>/dev/null || echo '?')"
-}
-
-# 健康检查（2026-10-20 三连教训：低配机部署后首次冷启动的 Mongo 认证握手
-# 病态缓慢（实测 3~4.5 分钟+，且窗口长度随健康循环长度水涨船高——循环
-# 打多久它坏多久，循环一停数十秒即愈）；而热态重启恒 4~6s 就绪。故策略：
-# 首启 45s 内未就绪即判定为冷启动病态，杀掉重启一次走热态，再给足观察窗）
+# 健康检查（2026-10-20 三连教训：低配机部署窗口整体退化（tar+chown+双 node
+# 的内存压力），窗口内 Mongo 认证病态缓慢且随探测时长水涨船高；窗口过后
+# 一切正常。策略：首启 45s 未就绪 → KILL 后热态重启一次 → 再给足观察窗）
 for i in $(seq 1 15); do
     health_probe && { log "健康检查通过（首次启动）"; log "======== 部署完成 ========"; exit 0; }
     sleep 3
 done
-log "首次启动 45s 未就绪——热态重启一次（实证冷启动 Mongo 握手病态）"
+log "首次启动 45s 未就绪——KILL 后热态重启一次（部署窗口退化实证）"
 restart_app
-for i in $(seq 1 60); do
-    health_probe && { log "健康检查通过（二次热启动，DB 往返确认）"; log "======== 部署完成 ========"; exit 0; }
+for i in $(seq 1 90); do
+    health_probe && { log "健康检查通过（二次启动，DB 往返确认）"; log "======== 部署完成 ========"; exit 0; }
     sleep 3
 done
 log "健康检查失败（HTTP ${CODE:-无连接}），最近宝塔日志："

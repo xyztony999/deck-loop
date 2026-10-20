@@ -76,10 +76,14 @@ jobs:
         working-directory: server-node
       - run: npm run build
         working-directory: server-node
-      - name: 组装部署包（dist + package.json + lockfile + env 模板）
+      # 构建后裁剪为纯生产依赖：服务器端零安装（免 pnpm/网络/版本漂移）
+      - run: pnpm install --prod --frozen-lockfile
+        working-directory: server-node
+      - name: 组装部署包（dist + node_modules + package.json + lockfile + env 模板）
         run: |
           mkdir -p bundle
           cp -r server-node/dist bundle/dist
+          cp -r server-node/node_modules bundle/node_modules
           cp server-node/package.json server-node/pnpm-lock.yaml bundle/
           cp deploy/deck-loop.env.example bundle/
           tar -czf "deck-node-${GITHUB_SHA::7}.tgz" -C bundle .
@@ -146,17 +150,16 @@ jobs:
             BACKUP_DIR=/www/backup/deck-loop
             APP_USER=www
             export PATH="/usr/local/bin:/usr/bin:$PATH"
-            which pnpm >/dev/null 2>&1 || npm i -g pnpm@10 >/dev/null 2>&1
             mkdir -p "$BACKUP_DIR"
             STAMP=$(date +%Y%m%d%H%M%S)
             cd "$DEPLOY_DIR"
-            # 部署前代码备份（保留最近 5 份；回滚时重装依赖）
-            tar -czf "$BACKUP_DIR/pre-$STAMP.tgz" dist package.json pnpm-lock.yaml 2>/dev/null || true
+            # 部署前备份（含 node_modules，回滚即解压即用；保留最近 5 份）
+            tar -czf "$BACKUP_DIR/pre-$STAMP.tgz" dist node_modules package.json pnpm-lock.yaml 2>/dev/null || true
             ls -t "$BACKUP_DIR"/pre-*.tgz 2>/dev/null | tail -n +6 | xargs -r rm -f
-            # 解包新版本并安装生产依赖（以 www 运行，统一属主）
-            tar -xzf /tmp/deck-loop-deploy/deck-node-*.tgz -C "$DEPLOY_DIR"
+            # 解包新版本（部署包自带生产 node_modules：服务器零安装）；
+            # --no-same-owner 防 runner 数字 uid 映射成服务器 mysql 用户
+            tar --no-same-owner -xzf /tmp/deck-loop-deploy/deck-node-*.tgz -C "$DEPLOY_DIR"
             rm -f /tmp/deck-loop-deploy/deck-node-*.tgz
-            pnpm install --prod --frozen-lockfile
             chown -R $APP_USER:$APP_USER "$DEPLOY_DIR/dist" "$DEPLOY_DIR/node_modules"
             # 重启：杀进程 → 宝塔面板守护自动拉起新代码；兜底手动拉起
             pkill -u $APP_USER -f "dist/main.js" || true
@@ -180,8 +183,7 @@ jobs:
               LATEST=$(ls -t "$BACKUP_DIR"/pre-*.tgz 2>/dev/null | head -1)
               if [ -n "$LATEST" ]; then
                 pkill -u $APP_USER -f "dist/main.js" || true
-                tar -xzf "$LATEST" -C "$DEPLOY_DIR"
-                pnpm install --prod --frozen-lockfile >/dev/null 2>&1 || true
+                tar --no-same-owner -xzf "$LATEST" -C "$DEPLOY_DIR"
                 chown -R $APP_USER:$APP_USER "$DEPLOY_DIR/dist" "$DEPLOY_DIR/node_modules"
                 su -s /bin/bash $APP_USER -c "cd $DEPLOY_DIR && nohup node dist/main.js >> /www/wwwlogs/deck-loop-cd.log 2>&1 &"
                 sleep 5

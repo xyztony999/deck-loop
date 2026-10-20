@@ -18,7 +18,7 @@ log() { echo "[$(date '+%F %T')] $*"; mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/n
 die() { log "错误: $*"; exit 1; }
 
 exec 9>"${APP_DIR}/.deploy.lock"
-flock -n 9 || die "已有部署在进行"
+flock -w 30 9 || die "部署锁等待超时（另一部署进行中或锁被长驻进程误持）"
 
 ls "${BUNDLE_DIR}"/deck-node-*.tgz >/dev/null 2>&1 || die "缺少部署包（${BUNDLE_DIR}/deck-node-*.tgz）"
 
@@ -50,7 +50,8 @@ log "重启: ${SCRIPT}"
 pkill -u "${APP_USER}" -f "${APP_DIR}/server-node/dist/main.js" 2>/dev/null || true
 pkill -u "${APP_USER}" -f "npm run start" 2>/dev/null || true
 sleep 1
-su -s /bin/bash "${APP_USER}" -c "bash '${SCRIPT}'" || true
+# 9>&-：剥离部署锁 fd——否则长驻应用继承锁句柄，后续部署全部误判占用（debateTimer 同款教训）
+su -s /bin/bash "${APP_USER}" -c "bash '${SCRIPT}'" 9>&- || true
 sleep 2
 PID="$(pgrep -u "${APP_USER}" -f 'dist/main.js' | head -1 || true)"
 [[ -n "$PID" ]] && echo "$PID" > "$PIDFILE" 2>/dev/null || true

@@ -48,26 +48,65 @@ log "产物解包完成: $(ls "${APP_DIR}/server-node/dist" | head -1) 等"
 SCRIPT="$(find_bt_script)" || die "未找到宝塔 Node 项目启动脚本（${BT_SCRIPTS_DIR}/*.sh）"
 PIDFILE="${BT_PIDS_DIR}/$(basename "$SCRIPT" .sh).pid"
 log "重启: ${SCRIPT}"
-[[ -f "$PIDFILE" ]] && kill "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null || true
-pkill -u "${APP_USER}" -f "${APP_DIR}/server-node/dist/main.js" 2>/dev/null || true
-pkill -u "${APP_USER}" -f "npm run start" 2>/dev/null || true
-sleep 1
-# 9>&-：剥离部署锁 fd——否则长驻应用继承锁句柄，后续部署全部误判占用（debateTimer 同款教训）
-su -s /bin/bash "${APP_USER}" -c "bash '${SCRIPT}'" 9>&- || true
-sleep 2
-PID="$(pgrep -u "${APP_USER}" -f 'dist/main.js' | head -1 || true)"
-[[ -n "$PID" ]] && echo "$PID" > "$PIDFILE" 2>/dev/null || true
-log "新进程 pid=$(cat "$PIDFILE" 2>/dev/null || echo '?')"
 
-# 健康检查（真实 DB 往返：错误密码登录 → 必须回 BIZ_AUTH_CREDENTIALS 信封。
-# 教训：只断言 HTTP 200 是假绿——异常过滤器对 404/500 也回 200；
-# 2026-10-20 教训×2：低配机部署窗口 tar+chown+启动并发压满磁盘/CPU，驱动
-# Mongo 认证握手可拖 3~4 分钟才就绪（此后稳定），60×3s 仍被实测击穿 → 90×3s）
-for i in $(seq 1 90); do
-    BODY="$(curl -s -m 3 -X POST "http://127.0.0.1:${HEALTH_PORT}/auth/account/login"         -H 'Content-Type: application/json' -d '{"email":"health@check","password":"x"}' || true)"
-    if echo "$BODY" | grep -q 'BIZ_AUTH_CREDENTIALS'; then
-        log "健康检查通过（DB 往返确认）"; log "======== 部署完成 ========"; exit 0
-    fi
+# 健康探测（复用：真实 DB 往返 = 错误密码登录必须回 BIZ_AUTH_CREDENTIALS 信封。
+# 教训：只断言 HTTP 200 是假绿——异常过滤器对 404/500 也回 200）
+health_probe() {
+    curl -s -m 3 -X POST "http://127.0.0.1:${HEALTH_PORT}/auth/account/login" \
+        -H 'Content-Type: application/json' \
+        -d '{"email":"health@check","password":"x"}' 2>/dev/null \
+        | grep -q 'BIZ_AUTH_CREDENTIALS'
+}
+
+restart_app() {
+    [[ -f "$PIDFILE" ]] && kill "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null || true
+    pkill -u "${APP_USER}" -f "${APP_DIR}/server-node/dist/main.js" 2>/dev/null || true
+    pkill -u "${APP_USER}" -f "npm run start" 2>/dev/null || true
+    sleep 1
+    # 9>&-：剥离部署锁 fd——否则长驻应用继承锁句柄，后续部署全部误判占用（debateTimer 同款教训）
+    su -s /bin/bash "${APP_USER}" -c "bash '${SCRIPT}'" 9>&- || true
+    sleep 2
+    PID="$(pgrep -u "${APP_USER}" -f 'dist/main.js' | head -1 || true)"
+    [[ -n "$PID" ]] && echo "$PID" > "$PIDFILE" 2>/dev/null || true
+    log "新进程 pid=$(cat "$PIDFILE" 2>/dev/null || echo '?')"
+}
+
+restart_app
+
+# 健康探测（复用：真实 DB 往返 = 错误密码登录必须回 BIZ_AUTH_CREDENTIALS 信封。
+# 教训：只断言 HTTP 200 是假绿——异常过滤器对 404/500 也回 200）
+health_probe() {
+    curl -s -m 3 -X POST "http://127.0.0.1:${HEALTH_PORT}/auth/account/login" \
+        -H 'Content-Type: application/json' \
+        -d '{"email":"health@check","password":"x"}' 2>/dev/null \
+        | grep -q 'BIZ_AUTH_CREDENTIALS'
+}
+
+restart_app() {
+    [[ -f "$PIDFILE" ]] && kill "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null || true
+    pkill -u "${APP_USER}" -f "${APP_DIR}/server-node/dist/main.js" 2>/dev/null || true
+    pkill -u "${APP_USER}" -f "npm run start" 2>/dev/null || true
+    sleep 1
+    # 9>&-：剥离部署锁 fd——否则长驻应用继承锁句柄，后续部署全部误判占用（debateTimer 同款教训）
+    su -s /bin/bash "${APP_USER}" -c "bash '${SCRIPT}'" 9>&- || true
+    sleep 2
+    PID="$(pgrep -u "${APP_USER}" -f 'dist/main.js' | head -1 || true)"
+    [[ -n "$PID" ]] && echo "$PID" > "$PIDFILE" 2>/dev/null || true
+    log "新进程 pid=$(cat "$PIDFILE" 2>/dev/null || echo '?')"
+}
+
+# 健康检查（2026-10-20 三连教训：低配机部署后首次冷启动的 Mongo 认证握手
+# 病态缓慢（实测 3~4.5 分钟+，且窗口长度随健康循环长度水涨船高——循环
+# 打多久它坏多久，循环一停数十秒即愈）；而热态重启恒 4~6s 就绪。故策略：
+# 首启 45s 内未就绪即判定为冷启动病态，杀掉重启一次走热态，再给足观察窗）
+for i in $(seq 1 15); do
+    health_probe && { log "健康检查通过（首次启动）"; log "======== 部署完成 ========"; exit 0; }
+    sleep 3
+done
+log "首次启动 45s 未就绪——热态重启一次（实证冷启动 Mongo 握手病态）"
+restart_app
+for i in $(seq 1 60); do
+    health_probe && { log "健康检查通过（二次热启动，DB 往返确认）"; log "======== 部署完成 ========"; exit 0; }
     sleep 3
 done
 log "健康检查失败（HTTP ${CODE:-无连接}），最近宝塔日志："

@@ -113,3 +113,79 @@ jobs:
           workspaces: client/src-tauri
       - run: cargo check
         working-directory: client/src-tauri
+
+  deploy:
+    name: 部署（宝塔服务器 /www/wwwroot/deck-loop）
+    # 部署包已产出（=三门禁全绿）才部署；仅 main push
+    needs: package
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: deck-loop-backend-deploy
+      - name: 上传部署包到服务器
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: deck-node-*.tgz
+          target: /tmp/deck-loop-deploy
+      - name: 解压 · 安装 · 重启（宝塔守护）· 健康检查 · 失败回滚
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            DEPLOY_DIR=/www/wwwroot/deck-loop
+            BACKUP_DIR=/www/backup/deck-loop
+            APP_USER=www
+            export PATH="/usr/local/bin:/usr/bin:$PATH"
+            which pnpm >/dev/null 2>&1 || npm i -g pnpm@10 >/dev/null 2>&1
+            mkdir -p "$BACKUP_DIR"
+            STAMP=$(date +%Y%m%d%H%M%S)
+            cd "$DEPLOY_DIR"
+            # 部署前代码备份（保留最近 5 份；回滚时重装依赖）
+            tar -czf "$BACKUP_DIR/pre-$STAMP.tgz" dist package.json pnpm-lock.yaml 2>/dev/null || true
+            ls -t "$BACKUP_DIR"/pre-*.tgz 2>/dev/null | tail -n +6 | xargs -r rm -f
+            # 解包新版本并安装生产依赖（以 www 运行，统一属主）
+            tar -xzf /tmp/deck-loop-deploy/deck-node-*.tgz -C "$DEPLOY_DIR"
+            rm -f /tmp/deck-loop-deploy/deck-node-*.tgz
+            pnpm install --prod --frozen-lockfile
+            chown -R $APP_USER:$APP_USER "$DEPLOY_DIR/dist" "$DEPLOY_DIR/node_modules"
+            # 重启：杀进程 → 宝塔面板守护自动拉起新代码；兜底手动拉起
+            pkill -u $APP_USER -f "dist/main.js" || true
+            UP=0
+            for i in $(seq 1 25); do
+              sleep 1
+              CODE=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/auth/login -H 'Content-Type: application/json' -d '{"email":"ci@health.check","password":"x"}' || true)
+              [ "$CODE" = "200" ] && UP=1 && break
+            done
+            if [ "$UP" != "1" ]; then
+              echo "宝塔未自动拉起，兜底手动启动…"
+              su -s /bin/bash $APP_USER -c "cd $DEPLOY_DIR && nohup node dist/main.js >> /www/wwwlogs/deck-loop-cd.log 2>&1 &"
+              for i in $(seq 1 20); do
+                sleep 1
+                CODE=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/auth/login -H 'Content-Type: application/json' -d '{"email":"ci@health.check","password":"x"}' || true)
+                [ "$CODE" = "200" ] && UP=1 && break
+              done
+            fi
+            if [ "$UP" != "1" ]; then
+              echo "健康检查失败，回滚最近备份"
+              LATEST=$(ls -t "$BACKUP_DIR"/pre-*.tgz 2>/dev/null | head -1)
+              if [ -n "$LATEST" ]; then
+                pkill -u $APP_USER -f "dist/main.js" || true
+                tar -xzf "$LATEST" -C "$DEPLOY_DIR"
+                pnpm install --prod --frozen-lockfile >/dev/null 2>&1 || true
+                chown -R $APP_USER:$APP_USER "$DEPLOY_DIR/dist" "$DEPLOY_DIR/node_modules"
+                su -s /bin/bash $APP_USER -c "cd $DEPLOY_DIR && nohup node dist/main.js >> /www/wwwlogs/deck-loop-cd.log 2>&1 &"
+                sleep 5
+              fi
+              exit 1
+            fi
+            echo "部署完成，健康检查 200"

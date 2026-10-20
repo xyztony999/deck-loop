@@ -27,13 +27,16 @@
 # 本机打包（不含 node_modules）
 cd server-node && npm run build   # 确认 dist/ 最新
 tar --exclude node_modules --exclude .git -czf ../deck-node.tgz .
-# 部署包获取：GitHub 仓库 → Actions → 最新 CI 运行（main push）→ Artifacts
-# 下载 deck-loop-backend-deploy（deck-node-<sha>.tgz，三门禁全绿才会产出）
-# 上传到服务器 /opt/deck-loop-node/ 后解压
-cd /opt/deck-loop-node && npm ci --omit=dev
+# 【自动部署】main push 且三门禁全绿时，CI 自动完成：上传 → 备份（/www/backup/deck-loop，
+# 留 5 份）→ 解包 → pnpm install --prod → 重启（杀进程由宝塔守护拉起，兜底手动 nohup）
+# → 健康检查（18080 /auth/login 探活）→ 失败自动回滚最近备份。手工介入仅在排查时需要。
+#
+# 【手工获取包】GitHub 仓库 → Actions → 最新 CI 运行 → Artifacts
+# 下载 deck-loop-backend-deploy（deck-node-<sha>.tgz），上传到 /www/wwwroot/deck-loop/ 解压
+cd /www/wwwroot/deck-loop && npm ci --omit=dev
 ```
 
-## 3. 环境变量（/opt/deck-loop-node/.env，宝塔 Node 项目界面或 PM2 ecosystem 填）
+## 3. 环境变量（/www/wwwroot/deck-loop/.env，宝塔 Node 项目界面或 PM2 ecosystem 填）
 
 ```ini
 PORT=8080
@@ -41,7 +44,7 @@ MONGODB_URI=mongodb://deck:<密码>@127.0.0.1:27017/deck_loop?authSource=deck_lo
 AUTH_TOKEN_SECRET=<随机长串>
 EXPORT_SIGN_SECRET=<随机长串>
 ASSET_URL_SECRET=<随机长串>
-ASSET_STORAGE_DIR=/opt/deck-loop-node/data/assets
+ASSET_STORAGE_DIR=/www/wwwroot/deck-loop/data/assets
 # AI 渠道（可选；不配则只有内置 MOCK 渠道）
 # GATEWAY_CHANNELS=[{"channelCode":"zhipu","channelName":"智谱","priority":10,"baseUrl":"https://open.bigmodel.cn/api/paas/v4","apiKeyEnv":"ZHIPU_API_KEY","models":[{"modelCode":"glm-4.6","modelName":"GLM-4.6","capabilityTags":["OUTLINE","FULL_GENERATE","FULL_ADJUST","TARGETED_ADJUST"],"enabled":true}]}]
 # ZHIPU_API_KEY=sk-xxx
@@ -51,7 +54,7 @@ ASSET_STORAGE_DIR=/opt/deck-loop-node/data/assets
 
 ## 4. 起服务（宝塔「Node 项目」二选一）
 
-- **宝塔方式**：网站 → Node 项目 → 添加：项目目录 /opt/deck-loop-node、启动选项 `dist/main.js`（或 `npm run start:prod`）、Node 版本 24、端口 8080、开启外网映射=否（走 Nginx）、环境变量按上节填入
+- **宝塔方式**：网站 → Node 项目 → 添加：项目目录 /www/wwwroot/deck-loop、启动选项 `dist/main.js`（或 `npm run start:prod`）、Node 版本 24、端口 8080、开启外网映射=否（走 Nginx）、环境变量按上节填入
 - **PM2 方式**（宝塔 Node 管理器内置）：
   ```bash
   pm2 start dist/main.js --name deck-loop-core --max-memory-restart 300M
@@ -76,7 +79,7 @@ curl -s https://api.<你的域名>/api/auth/account/profile
 ## 运维要点
 
 - **更新版本**：本地 `npm run build` → 打包 `dist/ + package.json + pnpm-lock?`（或整包）上传 → `npm ci --omit=dev` → `pm2 restart deck-loop-core`
-- **备份**：`mongodump --db deck_loop` + `/opt/deck-loop-node/data/assets/` 目录（素材文件不在库里）
+- **备份**：`mongodump --db deck_loop` + `/www/wwwroot/deck-loop/data/assets/` 目录（素材文件不在库里）
 - **日志**：`pm2 logs deck-loop-core`（宝塔 Node 项目界面可看）
 - **单实例假设**：会话撤销表/网关排队/登录失败计数在内存——只跑一个实例；多实例前需引 Redis（代码已注释演进点）
 

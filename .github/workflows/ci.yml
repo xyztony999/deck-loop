@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: 后端（NestJS · jest 89 用例）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server-node
+    steps:
+      - uses: actions/checkout@v4
+      # pnpm 锁 10（11 的 minimum-release-age 与本仓锁文件不兼容）
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: server-node/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        # test 脚本已固化 cross-env NODE_OPTIONS=--experimental-vm-modules
+        # + --runInBand --watchman=false（pptxgenjs 动态 import 需要）
+      - run: npm test
+
+  client:
+    name: 客户端（typecheck / build / 行为测试）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: pnpm test
+
+  tauri:
+    name: 桌面壳（cargo check · WebView2 COM）
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+      # 前端 dist 是 tauri context 宏的编译期输入，cargo check 前先产出
+      - run: pnpm install --frozen-lockfile
+        working-directory: client
+      - run: pnpm build
+        working-directory: client
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: client/src-tauri
+      - run: cargo check
+        working-directory: client/src-tauri

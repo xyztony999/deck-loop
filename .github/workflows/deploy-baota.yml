@@ -70,8 +70,14 @@ jobs:
             fi
             APP_DIR=/www/wwwroot/deck-loop
             cd "$APP_DIR"
-            # 阿里云→GitHub 瞬时抖动重试（Failure when receiving data 实测）
-            for i in 1 2 3; do git fetch origin && break; echo "git fetch 重试 $i"; sleep 5; done
-            git checkout main
-            git pull --ff-only origin main
+            # 阿里云→GitHub 慢性抖动（Failure when receiving data / GnuTLS -110 实测）：
+            # fetch+checkout+pull 整体重试 4 次
+            PULL_OK=0
+            for i in 1 2 3 4; do
+              if git fetch origin && git checkout main && git pull --ff-only origin main; then
+                PULL_OK=1 && break
+              fi
+              echo "git 更新重试 $i/4"; sleep 8
+            done
+            [ "$PULL_OK" = "1" ] || (echo "git 更新多次失败"; exit 1)
             bash "${APP_DIR}/deploy/baota/deploy.sh"

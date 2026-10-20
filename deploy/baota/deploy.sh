@@ -60,13 +60,15 @@ PID="$(pgrep -u "${APP_USER}" -f 'dist/main.js' | head -1 || true)"
 log "新进程 pid=$(cat "$PIDFILE" 2>/dev/null || echo '?')"
 
 # 健康检查（真实 DB 往返：错误密码登录 → 必须回 BIZ_AUTH_CREDENTIALS 信封。
-# 教训：只断言 HTTP 200 是假绿——异常过滤器对 404/500 也回 200）
-for i in $(seq 1 30); do
+# 教训：只断言 HTTP 200 是假绿——异常过滤器对 404/500 也回 200；
+# 2026-10-20 教训：低配机启动后 Mongo 认证握手有 ~30s 未就绪窗口且自愈，
+# 30×2s 循环恰在自愈前耗尽——放宽到 60×3s）
+for i in $(seq 1 60); do
     BODY="$(curl -s -m 3 -X POST "http://127.0.0.1:${HEALTH_PORT}/auth/account/login"         -H 'Content-Type: application/json' -d '{"email":"health@check","password":"x"}' || true)"
     if echo "$BODY" | grep -q 'BIZ_AUTH_CREDENTIALS'; then
         log "健康检查通过（DB 往返确认）"; log "======== 部署完成 ========"; exit 0
     fi
-    sleep 1
+    sleep 3
 done
 log "健康检查失败（HTTP ${CODE:-无连接}），最近宝塔日志："
 tail -n 30 "${BT_LOG_DIR}"/deck_loop.log 2>/dev/null || true

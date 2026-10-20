@@ -1,0 +1,34 @@
+name: Deploy to Baota
+
+# 宝塔生产部署（参考 debateTimer deploy-baota 模式）：
+# 服务器 /www/wwwroot/deck-loop 为本仓库 git checkout，部署逻辑版本化于
+# deploy/baota/deploy.sh（拉码 → 服务器端构建 → 宝塔 Node 项目脚本重启 → 健康检查）。
+# 管理权归宝塔面板：进程由面板启动脚本（vhost/scripts/deck_loop.sh）拉起，
+# 面板内可见/可停/可手动重启；本工作流只做 SSH 触发。
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ vars.BAOTA_DEPLOY == 'true' }}
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script_stop: true
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            APP_DIR=/www/wwwroot/deck-loop
+            cd "$APP_DIR"
+            git fetch origin
+            git checkout main
+            git pull --ff-only origin main
+            bash "${APP_DIR}/deploy/baota/deploy.sh"

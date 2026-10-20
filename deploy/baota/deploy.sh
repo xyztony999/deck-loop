@@ -56,10 +56,13 @@ PID="$(pgrep -u "${APP_USER}" -f 'dist/main.js' | head -1 || true)"
 [[ -n "$PID" ]] && echo "$PID" > "$PIDFILE" 2>/dev/null || true
 log "新进程 pid=$(cat "$PIDFILE" 2>/dev/null || echo '?')"
 
-# 健康检查（契约全 POST；业务层拒绝但 HTTP 200 即存活）
+# 健康检查（真实 DB 往返：错误密码登录 → 必须回 BIZ_AUTH_CREDENTIALS 信封。
+# 教训：只断言 HTTP 200 是假绿——异常过滤器对 404/500 也回 200）
 for i in $(seq 1 30); do
-    CODE="$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:${HEALTH_PORT}/auth/login"         -H 'Content-Type: application/json' -d '{"email":"health@check","password":"x"}' || true)"
-    [[ "$CODE" == "200" ]] && { log "健康检查通过"; log "======== 部署完成 ========"; exit 0; }
+    BODY="$(curl -s -m 3 -X POST "http://127.0.0.1:${HEALTH_PORT}/auth/account/login"         -H 'Content-Type: application/json' -d '{"email":"health@check","password":"x"}' || true)"
+    if echo "$BODY" | grep -q 'BIZ_AUTH_CREDENTIALS'; then
+        log "健康检查通过（DB 往返确认）"; log "======== 部署完成 ========"; exit 0
+    fi
     sleep 1
 done
 log "健康检查失败（HTTP ${CODE:-无连接}），最近宝塔日志："

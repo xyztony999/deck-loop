@@ -171,7 +171,10 @@ main() {
     # git pull 后必须重新 exec 本脚本：拉下来的可能是新版部署逻辑（debateTimer 同款教训）
     if [[ "${DEPLOY_REEXECED:-0}" != "1" ]]; then
         export DEPLOY_REEXECED=1
-        exec bash "${SCRIPT_DIR}/deploy.sh" "${ORIGINAL_ARGS:-}"
+        if [[ "$DRY_RUN" -eq 1 ]]; then
+            exec bash "${SCRIPT_DIR}/deploy.sh" --dry-run
+        fi
+        exec bash "${SCRIPT_DIR}/deploy.sh"
     fi
     build_backend
     restart_via_baota

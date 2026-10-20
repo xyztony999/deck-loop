@@ -42,8 +42,11 @@ export async function bootstrap(): Promise<void> {
 
   const parsedPort = Number.parseInt(process.env.PORT ?? '', 10);
   const port = Number.isInteger(parsedPort) && parsedPort > 0 ? parsedPort : DEFAULT_PORT;
+  // 绑定地址可收窄（宝塔部署设 HOST=127.0.0.1，仅 Nginx 反代可达；
+  // 默认 0.0.0.0 保持本地开发行为）
+  const host = process.env.HOST && process.env.HOST !== '' ? process.env.HOST : '0.0.0.0';
 
-  await app.listen(port);
+  await app.listen(port, host);
 }
 
 void bootstrap();

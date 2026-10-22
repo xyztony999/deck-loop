@@ -33,13 +33,13 @@ import {
 } from '../types'
 
 // ---------------------------------------------------------------
-// 字典（档位分组标签走 gen 域 task.TaskType，settings.md §3）
+// 字典（档位分组标签走 gen 域 taskType，settings.md §3；key=驼峰字段名契约）
 // ---------------------------------------------------------------
 
-const dict = useDict('gen', ['task.TaskType'])
+const dict = useDict('gen', ['taskType'])
 
 function tierLabel(type: PreferenceTaskType): string {
-  return dict.label('task.TaskType', type) || type
+  return dict.label('taskType', type) || type
 }
 
 function tierHint(type: PreferenceTaskType): string | undefined {

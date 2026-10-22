@@ -366,8 +366,8 @@ defineExpose({
             </div>
           </a-form>
 
-          <!-- detail 小节（2 列描述网格） -->
-          <a-descriptions v-else-if="card.type === 'detail'" :column="2" size="small">
+          <!-- detail 小节（单列定义列表，标签定宽——同 DlDetailPage 排版） -->
+          <a-descriptions v-else-if="card.type === 'detail'" :column="1" size="small" class="dl-desc">
             <a-descriptions-item
               v-for="f in card.fields ?? []"
               :key="f.field"
@@ -528,5 +528,25 @@ defineExpose({
 
 .dl-w-full {
   width: 100%;
+}
+
+/* 定义列表排版（07 v2.0 §3.4）：标签定宽次要色、单列基线一致 */
+.dl-desc :deep(.ant-descriptions-item-label) {
+  width: 112px;
+  min-width: 112px;
+  color: var(--dl-text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+  vertical-align: top;
+  padding-top: 1px;
+}
+
+.dl-desc :deep(.ant-descriptions-item-content) {
+  vertical-align: top;
+  font-size: 14px;
+}
+
+.dl-desc :deep(.ant-descriptions-item) {
+  padding-bottom: 12px;
 }
 </style>

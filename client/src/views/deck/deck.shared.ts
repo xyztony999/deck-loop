@@ -8,12 +8,12 @@
 import { registerDictColorMap } from '@/engine'
 import type { RowWithOperList } from '@/engine'
 
-/** 字典 key（deck.md §3 字典 Key 清单；POST /deck/dict/batch keys 原样上送） */
-export const DECK_DICT_TYPE = 'deck.DeckType'
-export const DECK_DICT_STATUS = 'deck.DeckStatus'
+/** 字典 key（deck.md §3；16-enum-dict 契约 = 字段驼峰名，POST /deck/dict/batch 原样上送） */
+export const DECK_DICT_TYPE = 'deckType'
+export const DECK_DICT_STATUS = 'deckStatus'
 
-/** 最近任务状态字典 key（deck.md §6「最近任务（状态 tag）」；task.TaskStatus 归 gen 域字典） */
-export const TASK_DICT_STATUS = 'task.TaskStatus'
+/** 最近任务状态字典 key（deck.md §6；taskStatus 归 gen 域字典） */
+export const TASK_DICT_STATUS = 'taskStatus'
 
 /** 首期仅支持 DECK（deck.md §5：DOC/POSTER 置灰「即将支持」；api-deck SaveAO deckType 仅 DECK） */
 export const DECK_TYPE_DECK = 'DECK'

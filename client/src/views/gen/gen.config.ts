@@ -19,7 +19,7 @@ import { EXTRA_REQUIREMENT_MAX } from './types'
 // ---------------------------------------------------------------
 
 registerDictColorMap('gen', {
-  'task.TaskStatus': {
+  'taskStatus': {
     QUEUED: 'default',
     RUNNING: 'processing',
     SUCCEEDED: 'success',
@@ -159,8 +159,8 @@ export const genTaskListConfig: DlListPageConfig = {
   domain: 'gen',
   rowKey: 'taskId',
   queryFields: [
-    { field: 'taskType', label: '任务类型', type: 'select', dictKey: 'task.TaskType' },
-    { field: 'taskStatus', label: '任务状态', type: 'select', dictKey: 'task.TaskStatus' },
+    { field: 'taskType', label: '任务类型', type: 'select', dictKey: 'taskType' },
+    { field: 'taskStatus', label: '任务状态', type: 'select', dictKey: 'taskStatus' },
   ],
   columns: [
     // 序号列 dataIndex 固定 '__seq__'（DlListPage bodyCell 约定，同 __action__）
@@ -170,7 +170,7 @@ export const genTaskListConfig: DlListPageConfig = {
       dataIndex: 'taskType',
       title: '任务类型',
       type: 'dict',
-      dictKey: 'task.TaskType',
+      dictKey: 'taskType',
       width: 100,
       align: 'center',
     },
@@ -178,7 +178,7 @@ export const genTaskListConfig: DlListPageConfig = {
       dataIndex: 'taskStatus',
       title: '任务状态',
       type: 'dict',
-      dictKey: 'task.TaskStatus',
+      dictKey: 'taskStatus',
       colorTag: true,
       width: 100,
       align: 'center',

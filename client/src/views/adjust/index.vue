@@ -93,7 +93,7 @@ const treeRef = ref<{ reload: () => Promise<void> } | null>(null)
 
 const deckDict = useDict('deck', [DECK_DICT_STATUS])
 const adjustDict = useDict('adjust', [ADJUST_DICT_TARGET_KIND])
-const taskDict = useDict('gen', ['task.TaskStatus'])
+const taskDict = useDict('gen', ['taskStatus'])
 
 // ---------------------------------------------------------------
 // Deck 锚定与只读守卫（§1：FINALIZED/ARCHIVED 全页只读）
@@ -221,7 +221,7 @@ const taskFailed = computed(
 )
 
 function statusLabelOf(t: TaskProgressInfo | undefined): string {
-  return t ? taskDict.label('task.TaskStatus', t.taskStatus) : ''
+  return t ? taskDict.label('taskStatus', t.taskStatus) : ''
 }
 
 /** 终态回调：成功→刷新画布+树+deck 指针；失败→拉错误摘要（§4.3） */

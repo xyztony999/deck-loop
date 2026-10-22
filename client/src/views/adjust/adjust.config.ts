@@ -17,7 +17,7 @@ import { registerDictColorMap } from '@/engine'
  */
 export function registerAdjustDictColors(): void {
   registerDictColorMap('ver', {
-    'ver.VersionSourceType': {
+    versionSourceType: {
       FULL_GENERATE: 'blue',
       FULL_ADJUST: 'purple',
       TARGETED_ADJUST: 'cyan',
@@ -34,8 +34,8 @@ export const adjustTaskListConfig: DlListPageConfig = {
   domain: 'gen',
   rowKey: 'taskId',
   queryFields: [
-    { field: 'taskType', label: '任务类型', type: 'select', dictKey: 'task.TaskType' },
-    { field: 'taskStatus', label: '任务状态', type: 'select', dictKey: 'task.TaskStatus' },
+    { field: 'taskType', label: '任务类型', type: 'select', dictKey: 'taskType' },
+    { field: 'taskStatus', label: '任务状态', type: 'select', dictKey: 'taskStatus' },
   ],
   columns: [
     // 序号列 dataIndex 固定 '__seq__'（DlListPage bodyCell 约定，同 __action__）
@@ -45,7 +45,7 @@ export const adjustTaskListConfig: DlListPageConfig = {
       dataIndex: 'taskType',
       title: '任务类型',
       type: 'dict',
-      dictKey: 'task.TaskType',
+      dictKey: 'taskType',
       width: 100,
       align: 'center',
     },
@@ -53,7 +53,7 @@ export const adjustTaskListConfig: DlListPageConfig = {
       dataIndex: 'taskStatus',
       title: '任务状态',
       type: 'dict',
-      dictKey: 'task.TaskStatus',
+      dictKey: 'taskStatus',
       colorTag: true,
       width: 100,
       align: 'center',

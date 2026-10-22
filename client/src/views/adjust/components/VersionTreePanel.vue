@@ -47,7 +47,7 @@ const emit = defineEmits<{
   (e: 'compare', target: VersionCompareTarget): void
 }>()
 
-const dict = useDict('ver', ['ver.VersionSourceType'])
+const dict = useDict('ver', ['versionSourceType'])
 
 // ---------------------------------------------------------------
 // 数据加载（tree：branchScope ACTIVE 默认 / ALL）
@@ -120,11 +120,11 @@ function toggleExpand(node: VersionTreeNode): void {
 }
 
 function sourceTypeLabel(node: VersionTreeNode): string {
-  return dict.label('ver.VersionSourceType', node.sourceType) || node.sourceType
+  return dict.label('versionSourceType', node.sourceType) || node.sourceType
 }
 
 function sourceTypeColor(node: VersionTreeNode): string | undefined {
-  return dict.color('ver.VersionSourceType', node.sourceType)
+  return dict.color('versionSourceType', node.sourceType)
 }
 
 function nodeTime(node: VersionTreeNode): string {

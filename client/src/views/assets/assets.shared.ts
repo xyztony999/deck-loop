@@ -15,9 +15,9 @@ import type { RowWithOperList } from '@/engine'
 // 字典 key（PageSpec assets.md §3；POST /asset/dict/batch keys 原样上送）
 // ---------------------------------------------------------------
 
-export const ASSET_DICT_TYPE = 'asset.AssetType'
-export const ASSET_DICT_STATUS = 'asset.AssetStatus'
-export const ASSET_DICT_SCENE = 'asset.TemplateScene'
+export const ASSET_DICT_TYPE = 'assetType'
+export const ASSET_DICT_STATUS = 'assetStatus'
+export const ASSET_DICT_SCENE = 'templateScene'
 
 /** AssetType 枚举值（api-assets.md §4.1 DDL 注释 'IMAGE/LOGO'） */
 export const ASSET_TYPE = {

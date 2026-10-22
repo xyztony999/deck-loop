@@ -24,8 +24,8 @@ import type { RowWithOperList } from '@/engine'
 // 字典 key（PageSpec delivery.md §3；POST /deliver/dict/batch keys 原样上送）
 // ---------------------------------------------------------------
 
-export const DELIVER_DICT_FORMAT = 'deliver.ExportFormat'
-export const DELIVER_DICT_STATUS = 'deliver.ExportStatus'
+export const DELIVER_DICT_FORMAT = 'exportFormat'
+export const DELIVER_DICT_STATUS = 'exportStatus'
 
 /** ExportFormat 枚举值（api-delivery.md §4.1 DDL 注释 PDF/IMAGES/PPTX） */
 export const EXPORT_FORMAT = {

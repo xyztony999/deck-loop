@@ -82,10 +82,7 @@ const showAnchor = computed(() => blocks.value.length >= 3)
       <h1 class="dl-page-title">{{ config.title }}</h1>
       <div class="dl-page-header-right">
         <slot name="header-actions" />
-        <a-button @click="emit('close')">
-          <CloseOutlined />
-          关闭
-        </a-button>
+        <a-button @click="emit('close')">关闭</a-button>
       </div>
     </div>
 
@@ -97,7 +94,7 @@ const showAnchor = computed(() => blocks.value.length >= 3)
         class="dl-section"
       >
         <h3 class="dl-section-title">{{ block.title }}</h3>
-        <a-descriptions :column="2" size="small">
+        <a-descriptions :column="1" size="small" class="dl-desc">
           <a-descriptions-item
             v-for="f in block.fields"
             :key="f.field"
@@ -166,5 +163,25 @@ const showAnchor = computed(() => blocks.value.length >= 3)
   max-width: 860px;
   margin: 0 auto;
   padding: 24px;
+}
+
+/* 定义列表排版（07 v2.0 §3.4）：标签定宽次要色、值左对齐、单列基线一致 */
+.dl-detail-body :deep(.ant-descriptions-item-label) {
+  width: 112px;
+  min-width: 112px;
+  color: var(--dl-text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+  vertical-align: top;
+  padding-top: 1px;
+}
+
+.dl-detail-body :deep(.ant-descriptions-item-content) {
+  vertical-align: top;
+  font-size: 14px;
+}
+
+.dl-detail-body :deep(.ant-descriptions-item) {
+  padding-bottom: 12px;
 }
 </style>

@@ -48,8 +48,8 @@ export const TARGET_KIND = {
 
 export type TargetKind = (typeof TARGET_KIND)[keyof typeof TARGET_KIND]
 
-/** 字典 key（PageSpec adjustment.md §3：选中态标签） */
-export const ADJUST_DICT_TARGET_KIND = 'adjust.TargetKind'
+/** 字典 key（PageSpec adjustment.md §3：选中态标签；16-enum-dict 契约 = 驼峰字段名） */
+export const ADJUST_DICT_TARGET_KIND = 'targetKind'
 
 /** 块类型 → 可选中的 TargetKind（PLACEHOLDER 不可选中定位） */
 export const BLOCK_TARGET_KIND: Record<VersionBlockType, TargetKind | null> = {

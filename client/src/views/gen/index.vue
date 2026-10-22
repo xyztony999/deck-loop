@@ -81,7 +81,7 @@ const taskListRef = ref<ListPageHandle | null>(null)
 // 字典（TaskType/TaskStatus，禁止硬编码）
 // ---------------------------------------------------------------
 
-const dict = useDict('gen', ['task.TaskStatus', 'task.TaskType'])
+const dict = useDict('gen', ['taskStatus', 'taskType'])
 
 // ---------------------------------------------------------------
 // 任务进度（轮询为主 + SSE 增强）
@@ -101,7 +101,7 @@ const outlineTaskInfo = computed(() => progress.info(outlineTaskId.value))
 const fullTaskInfo = computed(() => progress.info(fullTaskId.value))
 
 function statusLabelOf(t: TaskProgressInfo | undefined): string {
-  return t ? dict.label('task.TaskStatus', t.taskStatus) : ''
+  return t ? dict.label('taskStatus', t.taskStatus) : ''
 }
 
 function outlineActive(): boolean {

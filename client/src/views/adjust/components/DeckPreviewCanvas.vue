@@ -261,6 +261,8 @@ function clearSelection(): void {
   font-size: 13px;
 }
 
+/* 画布区装裱（2026-10-23 图3）：白纸坐页面底色台面 + 柔和投影——
+ * 暗色下白纸是"台面上的文档"而非"界面里的白洞"；白纸本身保真不动（07 §1） */
 .dl-canvas-pages {
   flex: 1;
   min-height: 0;
@@ -268,7 +270,10 @@ function clearSelection(): void {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding-right: 4px;
+  background: var(--dl-bg-page);
+  border: 1px solid var(--dl-border-light);
+  border-radius: 8px;
+  padding: 12px;
 }
 
 /* 07-ui-design-language.md：页卡 = 文档表面（--dl-doc-bg 永远白纸，内容/状态色
@@ -276,6 +281,7 @@ function clearSelection(): void {
 .dl-canvas-page {
   border: 2px solid var(--dl-border-light);
   border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   padding: 12px;
   background: var(--dl-doc-bg);
   cursor: pointer;

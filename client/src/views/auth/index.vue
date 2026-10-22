@@ -18,6 +18,7 @@ import type { FormInstance, Rule } from 'ant-design-vue/es/form'
 
 import { executeAction } from '@/engine/actionExecutor'
 import { useAuthStore } from '@/stores/auth'
+import LogoMark from '@/components/LogoMark.vue'
 
 type AuthMode = 'login' | 'register'
 
@@ -187,6 +188,7 @@ async function onSubmit(): Promise<void> {
 <template>
   <div class="dl-auth">
     <div class="dl-auth-card">
+      <LogoMark :size="40" class="dl-auth-logo" />
       <h2 class="dl-auth-title">Deck-Loop</h2>
       <p class="dl-auth-sub">AI 内容创作工作台</p>
       <a-form
@@ -250,6 +252,11 @@ async function onSubmit(): Promise<void> {
   border-radius: 10px;
   box-shadow: var(--dl-card-shadow);
   padding: 32px;
+}
+
+.dl-auth-logo {
+  display: block;
+  margin: 0 auto 8px;
 }
 
 .dl-auth-title {

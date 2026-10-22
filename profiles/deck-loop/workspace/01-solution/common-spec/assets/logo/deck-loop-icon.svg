@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Deck-Loop app icon">
+  <!--
+    Deck-Loop app icon tile — Tauri/Windows 图标源（1024 PNG 经此栅格化，再 tauri icon 全量生成）。
+    瓦片 = 表面色 #1f1f1f（应用表面层）+ 边框 #2c3240（--dl-border-light 同值）；
+    内嵌裸标缩放 82%。亮色变体见 deck-loop-icon-light.svg。
+  -->
+  <rect x="3" y="3" width="506" height="506" rx="116" fill="#1f1f1f" stroke="#2c3240" stroke-width="6"/>
+  <g transform="translate(256,256) scale(0.82) translate(-256,-256)">
+    <path d="M448 256 A192 192 0 1 1 256 64"
+          fill="none" stroke="#6b8ab5" stroke-width="48" stroke-linecap="round"/>
+    <path d="M232 16 L328 64 L232 112 Z" fill="#6b8ab5"/>
+    <rect x="170" y="200" width="172" height="112" rx="16" fill="#6b8ab5" opacity="0.32" transform="translate(20,20)"/>
+    <rect x="170" y="200" width="172" height="112" rx="16" fill="#6b8ab5"/>
+  </g>
+</svg>

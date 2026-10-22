@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Deck-Loop mark">
+  <!--
+    Deck-Loop logo mark — bare (transparent bg), source of truth.
+    设计语言 07 v2.0：环形循环箭头（Loop）环绕双层幻灯片（Deck）；
+    单色 #6b8ab5（= --dl-primary），平面无渐变；圆角 rx16 ≈ 应用圆角档 8 的 2 倍视觉。
+    衍生资产：瓦片图标 deck-loop-icon.svg（Windows/Tauri）、client/src/components/LogoMark.vue（应用内）。
+  -->
+  <!-- 循环环：顺时针 270°，缺口留右上，端点箭头指向右（循环方向） -->
+  <path d="M448 256 A192 192 0 1 1 256 64"
+        fill="none" stroke="#6b8ab5" stroke-width="48" stroke-linecap="round"/>
+  <!-- 箭头：接环端点 (256,64)，指入缺口 -->
+  <path d="M232 16 L328 64 L232 112 Z" fill="#6b8ab5"/>
+  <!-- Deck：后层幻灯片（错位层次） -->
+  <rect x="170" y="200" width="172" height="112" rx="16" fill="#6b8ab5" opacity="0.32" transform="translate(20,20)"/>
+  <!-- Deck：前层幻灯片 -->
+  <rect x="170" y="200" width="172" height="112" rx="16" fill="#6b8ab5"/>
+</svg>

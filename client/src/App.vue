@@ -19,6 +19,7 @@ import { useAuthStore } from '@/stores/auth'
 import { getDlTheme } from '@/styles/theme'
 import { useSyncStore } from '@/stores/sync'
 import { useLogout } from '@/composables/useLogout'
+import LogoMark from '@/components/LogoMark.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -61,8 +62,8 @@ function onNavClick(e: { key: string | number }): void {
     <a-layout v-else class="dl-layout">
       <a-layout-sider v-model:collapsed="collapsed" :width="200" class="dl-sider">
         <div class="dl-logo">
-          <span v-if="!collapsed">Deck-Loop</span>
-          <span v-else>DL</span>
+          <LogoMark :size="collapsed ? 26 : 22" />
+          <span v-if="!collapsed" class="dl-logo-text">Deck-Loop</span>
         </div>
         <a-menu
           mode="inline"
@@ -116,10 +117,16 @@ function onNavClick(e: { key: string | number }): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--dl-title-color);
+  gap: 8px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--dl-border-light);
+}
+
+.dl-logo-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dl-title-color);
+  white-space: nowrap;
 }
 
 .dl-sider-footer {

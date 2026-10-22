@@ -218,7 +218,7 @@ function onLinkClick(column: ColumnConfig, row: RowWithOperList): void {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 16px;
 }
 
 .deliver-filter-label {

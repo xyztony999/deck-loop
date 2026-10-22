@@ -333,7 +333,7 @@ function close(): void {
 .dl-compare-dot {
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: 4px;
   display: inline-block;
 }
 
@@ -370,11 +370,12 @@ function close(): void {
   gap: 12px;
 }
 
+/* 文档表面：版本内容预览，永远白纸（07-ui-design-language §1/§6） */
 .dl-compare-page {
-  background: #fff;
+  background: var(--dl-doc-bg);
   border: 2px solid #e5e7eb;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 12px 12px;
 }
 
 .dl-compare-page-head {
@@ -398,8 +399,8 @@ function close(): void {
   flex-direction: column;
   gap: 4px;
   border: 1.5px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 8px 10px;
+  border-radius: 4px;
+  padding: 8px 12px;
   margin-bottom: 8px;
   font-size: 13px;
   line-height: 1.6;

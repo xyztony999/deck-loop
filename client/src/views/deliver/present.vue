@@ -416,14 +416,16 @@ watch(deckId, (next, prev) => {
 </template>
 
 <style scoped>
+/* 07-ui-design-language.md：页面壳/顶栏/控制条/备注窗 = 应用 chrome（三层色板+主题变量）；
+ * 幻灯片区 = 文档表面（--dl-doc-bg 永远白纸 + 内容色白名单）。 */
 .present-root {
   position: fixed;
   inset: 0;
   z-index: 900;
-  background: #111827;
+  background: var(--dl-bg-page);
   display: flex;
   flex-direction: column;
-  color: #f9fafb;
+  color: var(--dl-title-color);
 }
 
 /* ---------- 顶栏 ---------- */
@@ -432,14 +434,15 @@ watch(deckId, (next, prev) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
-  background: rgba(17, 24, 39, 0.9);
+  padding: 12px 16px;
+  background: var(--dl-card-bg);
+  border-bottom: 1px solid var(--dl-border-light);
 }
 
 .present-topbar-title {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -458,7 +461,7 @@ watch(deckId, (next, prev) => {
   display: flex;
   align-items: stretch;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 16px;
 }
 
 .present-stage.has-notes {
@@ -472,16 +475,16 @@ watch(deckId, (next, prev) => {
   width: 56px;
   border: none;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.55);
+  background: transparent;
+  color: var(--dl-text-secondary);
   font-size: 22px;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
 }
 
 .present-hotzone:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: var(--dl-hover-bg);
+  color: var(--dl-title-color);
 }
 
 .present-hotzone:disabled {
@@ -501,9 +504,9 @@ watch(deckId, (next, prev) => {
 .present-slide {
   width: min(1120px, 100%, calc((100vh - 170px) * 16 / 9));
   aspect-ratio: 16 / 9;
-  background: #fff;
+  background: var(--dl-doc-bg);
   color: #1f2937;
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   display: flex;
   flex-direction: column;
@@ -576,14 +579,14 @@ watch(deckId, (next, prev) => {
   max-width: 100%;
   max-height: 46vh;
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .present-blk-image-ph {
   color: #9ca3af;
   font-size: 14px;
   border: 1px dashed #d1d5db;
-  border-radius: 6px;
+  border-radius: 4px;
   padding: 18px 24px;
 }
 
@@ -595,15 +598,16 @@ watch(deckId, (next, prev) => {
   font-size: 14px;
 }
 
-/* 演讲者备注（右侧小窗，仅演示者可见） */
+/* 演讲者备注（右侧小窗，仅演示者可见）——chrome 域，表面层 */
 .present-notes {
   position: absolute;
   top: 56px;
-  right: 20px;
+  right: 16px;
   bottom: 76px;
   width: 316px;
-  background: #fff;
-  color: #1f2937;
+  background: var(--dl-card-bg);
+  color: var(--dl-title-color);
+  border: 1px solid var(--dl-border-light);
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
   display: flex;
@@ -615,17 +619,17 @@ watch(deckId, (next, prev) => {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px;
   font-weight: 600;
-  padding: 10px 14px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--dl-border-light);
 }
 
 .present-notes-body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 14px;
+  padding: 12px 16px;
   font-size: 14px;
   line-height: 1.8;
   white-space: pre-wrap;
@@ -638,9 +642,9 @@ watch(deckId, (next, prev) => {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 10px 20px;
-  background: rgba(17, 24, 39, 0.95);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 16px;
+  background: var(--dl-card-bg);
+  border-top: 1px solid var(--dl-border-light);
 }
 
 .present-controls-group {
@@ -652,10 +656,10 @@ watch(deckId, (next, prev) => {
 .present-ctrl {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.06);
-  color: #f9fafb;
+  gap: 8px;
+  border: 1px solid var(--dl-border-light);
+  background: transparent;
+  color: var(--dl-title-color);
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 13px;
@@ -664,7 +668,7 @@ watch(deckId, (next, prev) => {
 }
 
 .present-ctrl:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--dl-hover-bg);
 }
 
 .present-ctrl:disabled {
@@ -673,13 +677,13 @@ watch(deckId, (next, prev) => {
 }
 
 .present-ctrl.is-active {
-  border-color: #60a5fa;
-  background: rgba(96, 165, 250, 0.22);
+  border-color: var(--dl-primary);
+  color: var(--dl-primary);
 }
 
 .present-ctrl--exit:hover {
-  border-color: #f87171;
-  background: rgba(248, 113, 113, 0.18);
+  border-color: var(--dl-danger-color);
+  color: var(--dl-danger-color);
 }
 
 .present-counter {
@@ -687,12 +691,12 @@ watch(deckId, (next, prev) => {
   text-align: center;
   font-size: 14px;
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--dl-title-color);
 }
 
 .present-keys {
   margin-left: auto;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--dl-text-secondary);
   font-size: 12px;
   white-space: nowrap;
   overflow: hidden;

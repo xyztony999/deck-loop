@@ -184,7 +184,7 @@ async function onSubmit(): Promise<void> {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 16px 16px;
   border-bottom: 1px solid var(--dl-title-border);
 }
 

@@ -175,8 +175,8 @@ function close(): void {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
-  border-radius: 6px;
+  padding: 8px 8px;
+  border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }

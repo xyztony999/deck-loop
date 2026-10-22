@@ -6,12 +6,16 @@
 // ============================================================
 
 // ---------- 主题变量（亮色基线 + 暗色覆盖；外观切换见 stores/appearance.ts） ----------
+// 07-ui-design-language.md：--dl-primary 主色唯一来源；--dl-doc-bg 文档表面
+// （幻灯片画布/演示舞台）专用——永远白纸，不随主题。
 :root {
   --dl-bg-page: #f4f5f7;
   --dl-card-bg: #ffffff;
   --dl-card-radius: 10px;
   --dl-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   --dl-title-bar: #6b8ab5;
+  --dl-primary: #6b8ab5;
+  --dl-doc-bg: #ffffff;
   --dl-title-border: #dce3ed;
   --dl-title-color: #1f2937;
   --dl-amount-color: #cf1322;
@@ -30,6 +34,7 @@
   --dl-bg-page: #141414;
   --dl-card-bg: #1f1f1f;
   --dl-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  --dl-title-bar: #6b8ab5;
   --dl-title-border: #2c3240;
   --dl-title-color: #e5e7eb;
   --dl-amount-color: #ff7875;

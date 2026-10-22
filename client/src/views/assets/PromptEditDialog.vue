@@ -227,7 +227,7 @@ async function onOk(): Promise<void> {
   padding: 8px 12px;
   background: var(--dl-bg-page);
   border: 1px solid var(--dl-border-light);
-  border-radius: 6px;
+  border-radius: 4px;
   max-height: 120px;
   overflow-y: auto;
   line-height: 1.8;
@@ -235,13 +235,13 @@ async function onOk(): Promise<void> {
 }
 
 .prompt-seg {
-  border-radius: 3px;
+  border-radius: 4px;
   padding: 0 2px;
 }
 
 .prompt-seg--closed {
-  color: #1677ff;
-  background: rgba(22, 119, 255, 0.12);
+  color: var(--dl-primary);
+  background: rgba(107, 138, 181, 0.15);
 }
 
 .prompt-seg--broken {

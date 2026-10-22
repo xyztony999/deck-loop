@@ -302,7 +302,7 @@ async function onOk(): Promise<void> {
   height: 30px;
   padding: 2px;
   border: 1px solid var(--dl-border-light);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--dl-card-bg);
   cursor: pointer;
   flex: none;

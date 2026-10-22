@@ -327,7 +327,7 @@ function goIterate(row: RowWithOperList): void {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 16px;
 }
 
 .deck-archive-label {
@@ -343,7 +343,7 @@ function goIterate(row: RowWithOperList): void {
   border: 1px solid var(--dl-border-light);
   border-radius: 10px;
   box-shadow: var(--dl-card-shadow);
-  padding: 14px 16px;
+  padding: 16px 16px;
   height: 100%;
   transition:
     border-color 0.2s ease,

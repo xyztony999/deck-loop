@@ -271,10 +271,13 @@ function clearSelection(): void {
   padding-right: 4px;
 }
 
+/* 07-ui-design-language.md：页卡 = 文档表面（--dl-doc-bg 永远白纸，内容/状态色
+ * 属文档域白名单）；选中描边用唯一主色。 */
 .dl-canvas-page {
   border: 2px solid var(--dl-border-light);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 12px;
+  background: var(--dl-doc-bg);
   cursor: pointer;
   transition: border-color 0.2s, background-color 0.2s;
 }
@@ -288,7 +291,7 @@ function clearSelection(): void {
 }
 
 .dl-canvas-page.is-selected {
-  border-color: #1890ff;
+  border-color: var(--dl-primary);
   background: #f0f7ff;
 }
 
@@ -328,8 +331,8 @@ function clearSelection(): void {
 
 .dl-blk {
   border: 1.5px solid transparent;
-  border-radius: 6px;
-  padding: 8px 10px;
+  border-radius: 4px;
+  padding: 8px;
   font-size: 13px;
   line-height: 1.6;
   transition: border-color 0.2s, background-color 0.2s;

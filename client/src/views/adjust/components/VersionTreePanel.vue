@@ -217,7 +217,7 @@ function openForkModal(node: VersionTreeNode): void {
       h('div', { style: 'display:flex;flex-direction:column;gap:8px;margin-top:8px' }, [
         h(
           'p',
-          { style: 'color:#6b7280;margin:0' },
+          { style: 'color:var(--dl-text-secondary);margin:0' },
           `将以 v${node.versionSeq} 为分叉头创建新分支并切换为活动分支（≤${BRANCH_NAME_MAX} 字，同创作物内唯一）。`,
         ),
         h(Input, {
@@ -347,7 +347,7 @@ function openForkModal(node: VersionTreeNode): void {
 .dl-tree-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .dl-tree-scope {
@@ -369,9 +369,9 @@ function openForkModal(node: VersionTreeNode): void {
 .dl-tree-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: 6px;
+  gap: 8px;
+  padding: 8px 8px;
+  border-radius: 4px;
   cursor: pointer;
   flex-wrap: wrap;
   transition: background-color 0.2s ease;
@@ -424,11 +424,11 @@ function openForkModal(node: VersionTreeNode): void {
 }
 
 .dl-tree-mark-current {
-  color: #faad14;
+  color: #faad14; /* Antd warning 同值语义色：当前版本高亮 */
 }
 
 .dl-tree-mark-final {
-  color: #52c41a;
+  color: #52c41a; /* 暂保 literal：语义色 token 化待 Antd CSS 变量方案 */
 }
 
 .dl-tree-time {

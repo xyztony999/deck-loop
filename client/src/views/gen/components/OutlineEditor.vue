@@ -277,7 +277,7 @@ function onPageHintInput(index: number, v: number | string | null): void {
 }
 
 .outline-node-over {
-  border-color: #1890ff;
+  border-color: var(--dl-primary);
 }
 
 .outline-node-head {
@@ -309,10 +309,10 @@ function onPageHintInput(index: number, v: number | string | null): void {
 }
 
 .outline-node-body {
-  margin-top: 10px;
+  margin-top: 12px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 
 .outline-points {

@@ -351,7 +351,7 @@ function onToolbarClick(btn: { key: string }): void {
   border: 1px solid var(--dl-border-light);
   border-radius: 10px;
   box-shadow: var(--dl-card-shadow);
-  padding: 12px 14px;
+  padding: 12px 16px;
   height: 100%;
   transition:
     border-color 0.2s ease,
@@ -371,8 +371,8 @@ function onToolbarClick(btn: { key: string }): void {
 
 /* 工作台引用选择器直达高亮（PageSpec §8） */
 .asset-card--highlight {
-  border-color: #1677ff;
-  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15);
+  border-color: var(--dl-primary);
+  box-shadow: 0 0 0 2px rgba(107, 138, 181, 0.2);
 }
 
 .asset-card-head {
@@ -399,7 +399,7 @@ function onToolbarClick(btn: { key: string }): void {
   height: 120px;
   padding: 0;
   border: 1px solid var(--dl-border-light);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--dl-bg-page);
   cursor: zoom-in;
   overflow: hidden;
@@ -444,7 +444,7 @@ function onToolbarClick(btn: { key: string }): void {
   align-items: center;
   gap: 4px;
   border-top: 1px solid var(--dl-border-light);
-  padding-top: 6px;
+  padding-top: 8px;
   margin-top: auto;
 }
 </style>

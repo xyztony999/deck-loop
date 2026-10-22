@@ -368,7 +368,7 @@ function onReset(): void {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 0;
+  padding: 8px 0;
 }
 
 .pref-tier-label {

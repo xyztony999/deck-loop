@@ -540,33 +540,36 @@ function onFullRetry(): void {
 </script>
 
 <template>
+  <!-- 07 v2.0 单表面：守卫态 = 页头 + 居中提示区；正常态 = 向导 + 分隔线 + 任务记录 -->
   <div class="dl-page">
-    <!-- 缺参守卫：无 deckId 无法进入向导 -->
-    <div v-if="!deckId" class="dl-page-card">
-      <div class="dl-card-title">生成向导</div>
-      <a-alert
-        type="warning"
-        show-icon
-        message="缺少创作物标识（deckId），请从创作物列表进入"
-      />
-      <div class="gen-guard-actions">
-        <a-button type="primary" @click="router.push('/deck')">返回创作物列表</a-button>
+    <template v-if="!deckId || readonlyMode">
+      <div class="dl-page-header">
+        <h1 class="dl-page-title">生成向导</h1>
       </div>
-    </div>
-
-    <!-- 只读守卫：ITERATING 及之后（PageSpec §7） -->
-    <div v-else-if="readonlyMode" class="dl-page-card">
-      <div class="dl-card-title">生成向导</div>
-      <a-alert
-        type="info"
-        show-icon
-        message="该创作物已进入迭代阶段，初稿生成向导已锁定"
-        description="初稿生成仅在创作物处于草稿态时可用，请前往迭代工作台继续调整内容。"
-      />
-      <div class="gen-guard-actions">
-        <a-button type="primary" @click="goAdjust">前往迭代工作台</a-button>
+      <div class="gen-guard-body">
+        <!-- 缺参守卫：无 deckId 无法进入向导 -->
+        <a-alert
+          v-if="!deckId"
+          type="warning"
+          show-icon
+          message="缺少创作物标识（deckId），请从创作物列表进入"
+        />
+        <!-- 只读守卫：ITERATING 及之后（PageSpec §7） -->
+        <a-alert
+          v-else
+          type="info"
+          show-icon
+          message="该创作物已进入迭代阶段，初稿生成向导已锁定"
+          description="初稿生成仅在创作物处于草稿态时可用，请前往迭代工作台继续调整内容。"
+        />
+        <div class="gen-guard-actions">
+          <a-button v-if="!deckId" type="primary" @click="router.push('/deck')">
+            返回创作物列表
+          </a-button>
+          <a-button v-else type="primary" @click="goAdjust">前往迭代工作台</a-button>
+        </div>
       </div>
-    </div>
+    </template>
 
     <template v-else>
       <!-- 三步向导 -->
@@ -646,41 +649,38 @@ function onFullRetry(): void {
         </template>
       </DlCardPage>
 
-      <!-- 任务跟踪 · 历史任务列表（operList 驱动 cancel/retry） -->
-      <div class="dl-page-card gen-tasks-card">
-        <div class="dl-card-title">任务记录</div>
-        <div class="gen-tasks-body">
-          <DlListPage
-            ref="taskListRef"
-            :config="genTaskListConfig"
-            @row-click="onTaskRowClick"
-          />
-        </div>
+      <!-- 任务跟踪 · 历史任务列表（operList 驱动 cancel/retry；分隔线隔开向导） -->
+      <div class="gen-tasks">
+        <DlListPage
+          ref="taskListRef"
+          :config="genTaskListConfig"
+          @row-click="onTaskRowClick"
+        />
       </div>
     </template>
   </div>
 </template>
 
 <style scoped>
+.gen-guard-body {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
 .gen-guard-actions {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
 }
 
-/* 内嵌 DlListPage：去掉其页面级灰底/内边距，融入卡片 */
-.gen-tasks-body :deep(.dl-page) {
-  padding: 0;
-  background: transparent;
+/* 嵌套引擎 .dl-page：随内容伸展，不占满屏 */
+.gen-tasks {
+  border-top: 1px solid var(--dl-border-light);
+}
+
+.gen-tasks :deep(.dl-page) {
   min-height: auto;
-}
-
-.gen-tasks-body :deep(.dl-page-card) {
-  box-shadow: none;
-  padding: 0;
-}
-
-.gen-tasks-card {
-  margin-top: 12px;
 }
 </style>

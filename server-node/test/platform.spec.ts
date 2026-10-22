@@ -18,6 +18,8 @@ import {
   createDeck,
   okData,
   bizFail,
+  TEST_PASSWORD,
+  WRONG_PASSWORD,
   postPublic,
   postJson,
 } from './helpers/testing-app';
@@ -39,9 +41,9 @@ describe('platform 域账号与同步（PlatformAuthSyncTest 对齐）', () => {
   async function registerOnly(tag: string): Promise<string> {
     const email = `${tag}@sync.test`;
     okData(
-      await postPublic(ctx, '/auth/account/register', {
+      await postPublic(ctx, 'register', {
         email,
-        password: 'passw0rd!',
+        password: TEST_PASSWORD,
         nickname: `用户${tag}`,
       }),
       '注册',
@@ -60,9 +62,9 @@ describe('platform 域账号与同步（PlatformAuthSyncTest 对齐）', () => {
 
     // 重复邮箱（v3 全局 Filter 已转译，HTTP 直陈；v1 走服务直调）
     bizFail(
-      await postPublic(ctx, '/auth/account/register', {
+      await postPublic(ctx, 'register', {
         email,
-        password: 'passw0rd!',
+        password: TEST_PASSWORD,
         nickname: '重复',
       }),
       'BIZ_AUTH_EMAIL_EXISTS',
@@ -71,9 +73,9 @@ describe('platform 域账号与同步（PlatformAuthSyncTest 对齐）', () => {
 
     // 非法邮箱
     bizFail(
-      await postPublic(ctx, '/auth/account/register', {
+      await postPublic(ctx, 'register', {
         email: 'not-an-email',
-        password: 'passw0rd!',
+        password: TEST_PASSWORD,
         nickname: '坏邮箱',
       }),
       'BIZ_AUTH_CREDENTIALS',
@@ -86,22 +88,22 @@ describe('platform 域账号与同步（PlatformAuthSyncTest 对齐）', () => {
     const email = await registerOnly(tag);
 
     bizFail(
-      await postPublic(ctx, '/auth/account/login', { email, password: 'wrong-pass' }),
+      await postPublic(ctx, 'login', { email, password: WRONG_PASSWORD }),
       'BIZ_AUTH_CREDENTIALS',
       '错密码拒绝',
     );
 
     bizFail(
-      await postPublic(ctx, '/auth/account/login', {
+      await postPublic(ctx, 'login', {
         email: 'nobody@sync.test',
-        password: 'whatever1',
+        password: WRONG_PASSWORD,
       }),
       'BIZ_AUTH_CREDENTIALS',
       '未注册账号拒绝',
     );
 
     const login = okData(
-      await postPublic(ctx, '/auth/account/login', { email, password: 'passw0rd!' }),
+      await postPublic(ctx, 'login', { email, password: TEST_PASSWORD }),
       '登录成功',
     );
     expect(login.token).toBeTruthy();
@@ -115,7 +117,7 @@ describe('platform 域账号与同步（PlatformAuthSyncTest 对齐）', () => {
     // 5 次连续失败触发锁定
     for (let i = 0; i < 5; i++) {
       bizFail(
-        await postPublic(ctx, '/auth/account/login', { email, password: 'wrong-pass' }),
+        await postPublic(ctx, 'login', { email, password: WRONG_PASSWORD }),
         'BIZ_AUTH_CREDENTIALS',
         `第${i + 1}次失败`,
       );
@@ -123,7 +125,7 @@ describe('platform 域账号与同步（PlatformAuthSyncTest 对齐）', () => {
 
     // 锁定中：正确口令也被拒（提示锁定）
     const locked = bizFail(
-      await postPublic(ctx, '/auth/account/login', { email, password: 'passw0rd!' }),
+      await postPublic(ctx, 'login', { email, password: TEST_PASSWORD }),
       'BIZ_AUTH_CREDENTIALS',
       '锁定中正确口令拒绝',
     );

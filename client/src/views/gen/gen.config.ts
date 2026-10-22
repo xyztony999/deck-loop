@@ -154,6 +154,7 @@ export function buildGenWizardConfig(deps: GenWizardDeps): DlCardPageConfig {
 // ---------------------------------------------------------------
 
 export const genTaskListConfig: DlListPageConfig = {
+  title: '任务记录',
   listAction: 'gen.taskList',
   domain: 'gen',
   rowKey: 'taskId',

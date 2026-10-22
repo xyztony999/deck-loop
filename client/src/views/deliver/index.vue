@@ -182,52 +182,45 @@ function onLinkClick(column: ColumnConfig, row: RowWithOperList): void {
 </script>
 
 <template>
-  <div class="dl-page deliver-page">
-    <!-- deckId 筛选工具条（§4.1 modalSelect，deck 选择池远程搜索） -->
-    <div class="dl-page-card deliver-filter-bar">
+  <!-- 07 v2.0：引擎即页面根；deckId 筛选坐页头 #header-extra -->
+  <DlListPage
+    ref="listRef"
+    :config="exportListConfig"
+    @toolbar-click="onToolbarClick"
+    @row-click="onRowClick"
+    @link-click="onLinkClick"
+  >
+    <!-- deckId 筛选（§4.1 modalSelect，deck 选择池远程搜索，坐页头行） -->
+    <template #header-extra>
       <span class="deliver-filter-label">创作物</span>
       <DeckSelectField
         v-model="deckFilterId"
         class="deliver-filter-select"
         :initial-label="deckFilterName"
-        placeholder="搜索选择创作物，筛选导出记录"
+        placeholder="搜索选择创作物"
         @update:label="deckFilterName = $event"
       />
-    </div>
+    </template>
+  </DlListPage>
 
-    <DlListPage
-      ref="listRef"
-      :config="exportListConfig"
-      @toolbar-click="onToolbarClick"
-      @row-click="onRowClick"
-      @link-click="onLinkClick"
-    />
-
-    <!-- 新建导出弹层（§4.2） -->
-    <ExportCreateDialog
-      v-model:open="dialogOpen"
-      :preset-deck-id="presetDeckId"
-      :preset-deck-name="presetDeckName"
-      @success="refresh"
-    />
-  </div>
+  <!-- 新建导出弹层（§4.2） -->
+  <ExportCreateDialog
+    v-model:open="dialogOpen"
+    :preset-deck-id="presetDeckId"
+    :preset-deck-name="presetDeckName"
+    @success="refresh"
+  />
 </template>
 
 <style scoped>
-.deliver-filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-}
-
 .deliver-filter-label {
   color: var(--dl-text-secondary);
   font-size: 13px;
   flex: none;
+  white-space: nowrap;
 }
 
 .deliver-filter-select {
-  max-width: 360px;
+  width: 260px;
 }
 </style>

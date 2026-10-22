@@ -1,17 +1,18 @@
 <script setup lang="ts">
 /**
- * DlCardPage — steps 向导容器引擎（ScmCardPage/ScmStepFormPage 的
- * deck-loop 轻量等价）。
+ * DlCardPage v2 — steps 向导容器引擎（07-ui-design-language.md §3.3 单表面形态）。
  *
- * 结构：sticky 标题栏 + 步骤条 + 每步卡片（form/detail/list/alert/flow）。
- * 按钮约定（frontend-specs §3.4 / F-01）：暂存 → 上一步 → 下一步/提交 → 取消。
- * - 表单字段 itemsPerRow=3，textarea/upload 独占一行（§5.7）
+ * 粘顶向导栏（标题 + 内联文字步骤条 + 动作组）→ 860 居中小节流。
+ * 卡片类型（form/detail/list/alert/flow）与全部插槽（#card-{key}/#field-{field}）不变。
+ * 按钮约定（F-01）：暂存(仅 saveDraftAction) → 上一步 → 下一步/提交 → 取消。
+ * - 表单字段 2 列（860 容器内），textarea/upload 独占一行
  * - Card >=3 自动启用悬浮锚点（§5.8）
  * - loadAction 自动加载详情，禁止页面 onMounted 手动调详情（selfcheck F-18）
+ * - beforeNext 抛异常不得静默卡死向导（2026-10-20 教训），显式报错并停留本步
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { MenuOutlined, CloseOutlined } from '@ant-design/icons-vue'
+import { CheckOutlined, CloseOutlined, MenuOutlined } from '@ant-design/icons-vue'
 
 import type { DlCardPageConfig, DlCardSchema, DlFieldConfig } from '../pageSchemas'
 import { executeAction } from '../actionExecutor'
@@ -49,6 +50,12 @@ const steps = computed(() => props.config.steps)
 const currentStep = computed(() => steps.value[current.value])
 
 const isLast = computed(() => current.value === steps.value.length - 1)
+
+function goTo(index: number): void {
+  if (index < 0 || index >= steps.value.length || index === current.value) return
+  current.value = index
+  emit('step-change', steps.value[current.value].key, current.value)
+}
 
 // ---------------------------------------------------------------
 // 字典（全部步骤字段合并一次批量拉取）
@@ -117,8 +124,6 @@ async function next(): Promise<void> {
     }
   }
   if (step.beforeNext) {
-    // beforeNext 抛异常不得静默卡死向导（2026-10-20 教训：脏数据 TypeError
-    // 使「下一步」无任何反馈）；显式报错并停留本步
     let ok: boolean
     try {
       ok = await step.beforeNext(formData)
@@ -138,9 +143,7 @@ async function next(): Promise<void> {
 }
 
 async function prev(): Promise<void> {
-  if (current.value === 0) return
-  current.value -= 1
-  emit('step-change', steps.value[current.value].key, current.value)
+  goTo(current.value - 1)
 }
 
 async function doSubmit(): Promise<void> {
@@ -171,10 +174,10 @@ async function saveDraft(): Promise<void> {
 // ---------------------------------------------------------------
 
 function fieldSpanClass(f: DlFieldConfig): string {
-  if (f.span === 'full' || f.type === 'textarea' || f.type === 'upload') {
+  if (f.span === 'full' || f.span === 2 || f.type === 'textarea' || f.type === 'upload') {
     return 'dl-form-item-full'
   }
-  return `dl-form-item-span-${f.span ?? 1}`
+  return 'dl-form-item-span-1'
 }
 
 function strField(f: string): string | undefined {
@@ -239,12 +242,39 @@ defineExpose({
 
 <template>
   <div class="dl-page">
-    <!-- sticky 标题栏（F-01） -->
-    <div class="dl-sticky-bar dl-card-bar">
-      <span class="dl-bar-title">{{ config.title }}</span>
-      <a-space>
-        <a-button :loading="submitting" @click="saveDraft">暂存</a-button>
+    <!-- 粘顶向导栏：标题 + 内联步骤条 + 动作组（07 §3.3） -->
+    <div class="dl-wizard-bar">
+      <span class="dl-wizard-bar-title">{{ config.title }}</span>
+
+      <div class="dl-wizard-steps">
+        <template v-for="(s, i) in steps" :key="s.key">
+          <button
+            type="button"
+            class="dl-step"
+            :class="{ 'is-current': i === current, 'is-done': i < current }"
+            :disabled="i > current"
+            @click="goTo(i)"
+          >
+            <span class="dl-step-dot">
+              <CheckOutlined v-if="i < current" />
+              <template v-else>{{ i + 1 }}</template>
+            </span>
+            <span class="dl-step-name">{{ s.title }}</span>
+          </button>
+          <span v-if="i < steps.length - 1" class="dl-step-sep">›</span>
+        </template>
+      </div>
+
+      <div class="dl-wizard-actions">
+        <a-button @click="emit('cancel')">取消</a-button>
         <a-button v-if="current > 0" @click="prev">上一步</a-button>
+        <a-button
+          v-if="config.saveDraftAction"
+          :loading="submitting"
+          @click="saveDraft"
+        >
+          暂存
+        </a-button>
         <a-button
           type="primary"
           :loading="submitting"
@@ -252,137 +282,126 @@ defineExpose({
         >
           {{ isLast ? '提交' : '下一步' }}
         </a-button>
-        <a-button @click="emit('cancel')">取消</a-button>
-      </a-space>
+      </div>
     </div>
 
-    <!-- 步骤条 -->
-    <div class="dl-page-card">
-      <a-steps :current="current" size="small">
-        <a-step
-          v-for="s in steps"
-          :key="s.key"
-          :title="s.title"
-          :description="s.description"
-        />
-      </a-steps>
-    </div>
-
-    <a-spin :spinning="loadingDetail">
-      <!-- 当前步骤卡片 -->
-      <div
-        v-for="card in visibleCards(current)"
-        :id="`dl-card-${card.key}`"
-        :key="card.key"
-        class="dl-page-card"
-      >
-        <div class="dl-card-title">{{ card.title }}</div>
-
-        <!-- form 卡片：3 列网格，textarea/upload 独占一行（F-02） -->
-        <a-form
-          v-if="card.type === 'form'"
-          ref="formRef"
-          class="dl-form"
-          layout="vertical"
-          :model="formData"
+    <!-- 步骤内容：860 居中小节流 -->
+    <a-spin :spinning="loadingDetail" class="dl-wizard-spin">
+      <div class="dl-wizard-body">
+        <section
+          v-for="card in visibleCards(current)"
+          :id="`dl-card-${card.key}`"
+          :key="card.key"
+          class="dl-section"
         >
-          <div class="dl-form-grid">
-            <a-form-item
+          <h3 class="dl-section-title">{{ card.title }}</h3>
+
+          <!-- form 小节：2 列网格，textarea/upload 独占一行（F-02） -->
+          <a-form
+            v-if="card.type === 'form'"
+            ref="formRef"
+            class="dl-form"
+            layout="vertical"
+            :model="formData"
+          >
+            <div class="dl-form-grid">
+              <a-form-item
+                v-for="f in card.fields ?? []"
+                :key="f.field"
+                :class="fieldSpanClass(f)"
+                :name="f.field"
+                :label="f.type === 'hidden' ? undefined : f.label"
+                :rules="f.required ? [{ required: true, message: `请${f.type === 'select' || f.type === 'date' || f.type === 'radio' ? '选择' : '输入'}${f.label}` }] : undefined"
+              >
+                <slot :name="`field-${f.field}`" :field="f" :form-data="formData">
+                  <a-input
+                    v-if="!f.type || f.type === 'input'"
+                    :value="strField(f.field)"
+                    :placeholder="f.placeholder ?? '请输入'"
+                    v-bind="f.props"
+                    @update:value="(v: string) => setField(f.field, v)"
+                  />
+                  <a-textarea
+                    v-else-if="f.type === 'textarea'"
+                    :value="strField(f.field)"
+                    :rows="3"
+                    :placeholder="f.placeholder ?? '请输入'"
+                    v-bind="f.props"
+                    @update:value="(v: string) => setField(f.field, v)"
+                  />
+                  <a-input-number
+                    v-else-if="f.type === 'number'"
+                    :value="numField(f.field)"
+                    :placeholder="f.placeholder ?? '请输入'"
+                    class="dl-w-full"
+                    v-bind="f.props"
+                    @update:value="(v: unknown) => setField(f.field, v === undefined ? undefined : Number(v))"
+                  />
+                  <a-select
+                    v-else-if="f.type === 'select'"
+                    :value="strField(f.field)"
+                    :options="dictOptions(f.dictKey)"
+                    :placeholder="f.placeholder ?? '请选择'"
+                    v-bind="f.props"
+                    @update:value="(v: unknown) => setField(f.field, v === undefined || v === null ? '' : String(v))"
+                  />
+                  <a-date-picker
+                    v-else-if="f.type === 'date'"
+                    :value="strField(f.field)"
+                    value-format="YYYY-MM-DD"
+                    class="dl-w-full"
+                    :placeholder="f.placeholder ?? '请选择日期'"
+                    v-bind="f.props"
+                    @update:value="(v: unknown) => setField(f.field, v === undefined || v === null ? '' : String(v))"
+                  />
+                  <a-radio-group
+                    v-else-if="f.type === 'radio'"
+                    :value="strField(f.field)"
+                    :options="dictOptions(f.dictKey)"
+                    v-bind="f.props"
+                    @update:value="(v: string) => setField(f.field, v)"
+                  />
+                </slot>
+              </a-form-item>
+            </div>
+          </a-form>
+
+          <!-- detail 小节（2 列描述网格） -->
+          <a-descriptions v-else-if="card.type === 'detail'" :column="2" size="small">
+            <a-descriptions-item
               v-for="f in card.fields ?? []"
               :key="f.field"
-              :class="fieldSpanClass(f)"
-              :name="f.field"
-              :label="f.type === 'hidden' ? undefined : f.label"
-              :rules="f.required ? [{ required: true, message: `请${f.type === 'select' || f.type === 'date' || f.type === 'radio' ? '选择' : '输入'}${f.label}` }] : undefined"
+              :label="f.label"
             >
-              <slot :name="`field-${f.field}`" :field="f" :form-data="formData">
-                <a-input
-                  v-if="!f.type || f.type === 'input'"
-                  :value="strField(f.field)"
-                  :placeholder="f.placeholder ?? '请输入'"
-                  v-bind="f.props"
-                  @update:value="(v: string) => setField(f.field, v)"
-                />
-                <a-textarea
-                  v-else-if="f.type === 'textarea'"
-                  :value="strField(f.field)"
-                  :rows="3"
-                  :placeholder="f.placeholder ?? '请输入'"
-                  v-bind="f.props"
-                  @update:value="(v: string) => setField(f.field, v)"
-                />
-                <a-input-number
-                  v-else-if="f.type === 'number'"
-                  :value="numField(f.field)"
-                  :placeholder="f.placeholder ?? '请输入'"
-                  class="dl-w-full"
-                  v-bind="f.props"
-                  @update:value="(v: unknown) => setField(f.field, v === undefined ? undefined : Number(v))"
-                />
-                <a-select
-                  v-else-if="f.type === 'select'"
-                  :value="strField(f.field)"
-                  :options="dictOptions(f.dictKey)"
-                  :placeholder="f.placeholder ?? '请选择'"
-                  v-bind="f.props"
-                  @update:value="(v: unknown) => setField(f.field, v === undefined || v === null ? '' : String(v))"
-                />
-                <a-date-picker
-                  v-else-if="f.type === 'date'"
-                  :value="strField(f.field)"
-                  value-format="YYYY-MM-DD"
-                  class="dl-w-full"
-                  :placeholder="f.placeholder ?? '请选择日期'"
-                  v-bind="f.props"
-                  @update:value="(v: unknown) => setField(f.field, v === undefined || v === null ? '' : String(v))"
-                />
-                <a-radio-group
-                  v-else-if="f.type === 'radio'"
-                  :value="strField(f.field)"
-                  :options="dictOptions(f.dictKey)"
-                  v-bind="f.props"
-                  @update:value="(v: string) => setField(f.field, v)"
-                />
-              </slot>
-            </a-form-item>
-          </div>
-        </a-form>
+              {{ detailText(f.field, f.type) }}
+            </a-descriptions-item>
+          </a-descriptions>
 
-        <!-- detail 卡片 -->
-        <a-descriptions v-else-if="card.type === 'detail'" :column="3" size="small">
-          <a-descriptions-item
-            v-for="f in card.fields ?? []"
-            :key="f.field"
-            :label="f.label"
-          >
-            {{ detailText(f.field, f.type) }}
-          </a-descriptions-item>
-        </a-descriptions>
+          <!-- list 小节（自治数据可经 #card-{key} 插槽覆盖） -->
+          <slot v-else-if="card.type === 'list'" :name="`card-${card.key}`" :card="card" :form-data="formData">
+            <a-table
+              :columns="(card.columns ?? []).map((c) => ({ key: c.dataIndex, dataIndex: c.dataIndex, title: c.title, width: c.width, align: c.align }))"
+              :data-source="card.items ?? []"
+              :pagination="(card.items?.length ?? 0) > 5 ? { pageSize: 5, size: 'small' } : false"
+              row-key="id"
+              size="small"
+            />
+          </slot>
 
-        <!-- list 卡片（自治数据可经 #card-{key} 插槽覆盖） -->
-        <slot v-else-if="card.type === 'list'" :name="`card-${card.key}`" :card="card" :form-data="formData">
-          <a-table
-            :columns="(card.columns ?? []).map((c) => ({ key: c.dataIndex, dataIndex: c.dataIndex, title: c.title, width: c.width, align: c.align }))"
-            :data-source="card.items ?? []"
-            :pagination="(card.items?.length ?? 0) > 5 ? { pageSize: 5, size: 'small' } : false"
-            row-key="id"
-            size="small"
+          <!-- alert 小节（§5.15） -->
+          <a-alert
+            v-else-if="card.type === 'alert'"
+            :type="card.alertType ?? 'info'"
+            :message="card.alertMessage"
+            show-icon
           />
-        </slot>
 
-        <!-- alert 卡片（§5.15） -->
-        <a-alert
-          v-else-if="card.type === 'alert'"
-          :type="card.alertType ?? 'info'"
-          :message="card.alertMessage"
-          show-icon
-        />
+          <!-- flow 小节（§5.17） -->
+          <slot v-else-if="card.type === 'flow'" :name="`card-${card.key}`" :card="card" :form-data="formData" />
 
-        <!-- flow 卡片（§5.17） -->
-        <slot v-else-if="card.type === 'flow'" :name="`card-${card.key}`" :card="card" :form-data="formData" />
-
-        <!-- 通用兜底插槽 -->
-        <slot v-else :name="`card-${card.key}`" :card="card" :form-data="formData" />
+          <!-- 通用兜底插槽 -->
+          <slot v-else :name="`card-${card.key}`" :card="card" :form-data="formData" />
+        </section>
       </div>
     </a-spin>
 
@@ -421,32 +440,90 @@ defineExpose({
 </template>
 
 <style scoped>
-.dl-card-bar {
-  margin-bottom: 12px;
+/* 内联文字步骤条（07 §3.3）：18px 描边圆序号 + 13px 步骤名；可回跳已完成步 */
+.dl-wizard-steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.dl-bar-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--dl-title-color);
+.dl-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--dl-text-secondary);
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &.is-current {
+    color: var(--dl-title-color);
+    font-weight: 600;
+
+    .dl-step-dot {
+      border-color: var(--dl-primary);
+      color: var(--dl-primary);
+    }
+  }
+
+  &.is-done {
+    .dl-step-dot {
+      border-color: var(--dl-primary);
+      color: var(--dl-primary);
+      background: transparent;
+    }
+  }
 }
 
+.dl-step-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--dl-border-light);
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+  flex: none;
+}
+
+.dl-step-name {
+  white-space: nowrap;
+}
+
+.dl-step-sep {
+  color: var(--dl-border-light);
+  font-size: 13px;
+}
+
+.dl-wizard-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dl-wizard-spin {
+  flex: 1 0 auto;
+}
+
+/* 表单 2 列网格（860 容器内；07 §3.3） */
 .dl-form-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0 16px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 24px;
 }
 
 .dl-form-item-span-1 {
   grid-column: span 1;
-}
-
-.dl-form-item-span-2 {
-  grid-column: span 2;
-}
-
-.dl-form-item-span-3 {
-  grid-column: span 3;
 }
 
 .dl-w-full {

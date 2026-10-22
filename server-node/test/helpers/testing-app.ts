@@ -33,8 +33,15 @@ export interface Session {
   email: string;
 }
 
-/** 测试账号统一口令（8~64 位注册约束） */
-export const TEST_PASSWORD = 'passw0rd!';
+/** 测试账号统一口令（合成夹具非真实凭据；可经 DECK_TEST_PASSWORD 覆盖，8~64 位注册约束） */
+export const TEST_PASSWORD = process.env.DECK_TEST_PASSWORD ?? 'passw0rd!';
+
+/** 登录失败用例口令（合成夹具；与 TEST_PASSWORD 不同即可） */
+export const WRONG_PASSWORD = process.env.DECK_TEST_WRONG_PASSWORD ?? 'wrong-pass';
+
+/** 模拟渠道 apiKey（合成夹具非真实密钥；可经 DECK_TEST_MOCK_API_KEY 覆盖） */
+export const MOCK_CHANNEL_API_KEY =
+  process.env.DECK_TEST_MOCK_API_KEY ?? 'local-mock-key-not-a-secret';
 
 let userSeq = 0;
 
@@ -76,14 +83,14 @@ export class TestContext {
   /** 注册 + 登录 → 会话（业务数据以 accountId 为 userId） */
   async newSession(prefix = 'u'): Promise<Session> {
     const email = `${uniqueTag(prefix)}@test.local`;
-    const registered = await postPublic(this, '/auth/account/register', {
+    const registered = await postPublic(this, 'register', {
       email,
       password: TEST_PASSWORD,
       nickname: `tester-${prefix}`,
     });
     const userId = okData(registered, '注册').accountId;
     const login = okData(
-      await postPublic(this, '/auth/account/login', { email, password: TEST_PASSWORD }),
+      await postPublic(this, 'login', { email, password: TEST_PASSWORD }),
       '登录',
     );
     return { userId, token: login.token, email };
@@ -131,6 +138,7 @@ export async function postJson(
   path: string,
   body: unknown,
 ): Promise<unknown> {
+  assertRelativePath(path);
   const res = await request(ctx.server as never)
     .post(path)
     .set('x-auth-token', session.token)
@@ -139,13 +147,28 @@ export async function postJson(
   return res.body;
 }
 
-/** POST JSON（匿名，@Public 端点） */
+/** 相对路径守卫：仅允许应用内路径，杜绝绝对 URL / 越权主机（防 SSRF 约束） */
+function assertRelativePath(path: string): void {
+  if (!path.startsWith('/') || path.startsWith('//')) {
+    throw new Error(`测试助手仅接受应用内相对路径: ${path}`);
+  }
+}
+
+/** @Public 端点路由白名单（编译期键约束：不接受任意 URL 字符串） */
+const PUBLIC_ROUTES = {
+  register: '/auth/account/register',
+  login: '/auth/account/login',
+} as const;
+
+/** POST JSON（匿名，@Public 端点；路由仅限白名单键） */
 export async function postPublic(
   ctx: TestContext,
-  path: string,
+  route: keyof typeof PUBLIC_ROUTES,
   body: unknown,
 ): Promise<unknown> {
-  const res = await request(ctx.server as never).post(path).send(body ?? {});
+  const res = await request(ctx.server as never)
+    .post(PUBLIC_ROUTES[route])
+    .send(body ?? {});
   expect(res.status).toBe(200);
   return res.body;
 }

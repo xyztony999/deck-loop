@@ -1,60 +1,45 @@
 // ============================================================
-// Deck-Loop 全局基调（frontend-specs 05-ui-ux-specs §5.1）
-// 页面背景 #f4f5f7；Card 白色 + radius 10px + shadow；
-// Card 标题蓝色小竖条 + 底部边框；表格首末列留白 24px。
+// Deck-Loop 全局基调（07-ui-design-language.md v2.0 — 单表面形态语言）
+// 形态：每页一个连续表面（内容区贴壳满幅），分区 = 分隔线 + 小节标题；
+//       废除卡片堆叠（dl-page-card）、蓝竖条标题（dl-card-title）、悬浮标题卡（dl-sticky-bar）。
+// 色彩：暗色三层 = 页面底 #141414（侧栏/裸页）→ 表面 #1f1f1f（内容/顶栏）→ 浮层 #262626。
+//       --dl-primary 主色唯一来源；--dl-doc-bg 文档表面（永远白纸，不随主题）。
 // AntdV 4 组件 token 定制见 src/styles/theme.ts（ConfigProvider 注入）。
 // ============================================================
 
 // ---------- 主题变量（亮色基线 + 暗色覆盖；外观切换见 stores/appearance.ts） ----------
-// 07-ui-design-language.md：--dl-primary 主色唯一来源；--dl-doc-bg 文档表面
-// （幻灯片画布/演示舞台）专用——永远白纸，不随主题。
 :root {
   --dl-bg-page: #f4f5f7;
   --dl-card-bg: #ffffff;
-  --dl-card-radius: 10px;
-  --dl-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  --dl-title-bar: #6b8ab5;
   --dl-primary: #6b8ab5;
   --dl-doc-bg: #ffffff;
-  --dl-title-border: #dce3ed;
+  --dl-scrollbar: #c4c9d2;
   --dl-title-color: #1f2937;
   --dl-amount-color: #cf1322;
   --dl-price-color: #d4380d;
   --dl-danger-color: #ff4d4f;
-  --dl-header-bg: #ffffff;
-  --dl-header-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-  --dl-border-light: #f0f0f0;
+  --dl-border-light: #e8e8e8;
   --dl-text-secondary: #6b7280;
   --dl-hover-bg: #f5f5f5;
-  --dl-sider-bg: #ffffff;
-  --dl-card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --dl-sider-bg: #f4f5f7;
 }
 
 [data-dl-theme='dark'] {
   --dl-bg-page: #141414;
   --dl-card-bg: #1f1f1f;
-  --dl-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
-  --dl-title-bar: #6b8ab5;
-  --dl-title-border: #2c3240;
+  --dl-scrollbar: #3f4450;
   --dl-title-color: #e5e7eb;
   --dl-amount-color: #ff7875;
   --dl-price-color: #ff9c6e;
   --dl-danger-color: #ff7875;
-  --dl-header-bg: #1f1f1f;
-  --dl-header-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
   --dl-border-light: #2c3240;
   --dl-text-secondary: #a6adb8;
   --dl-hover-bg: #2a2a2a;
-  --dl-sider-bg: #1f1f1f;
-  --dl-card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --dl-sider-bg: #141414;
 }
 
 @dl-bg-page: var(--dl-bg-page);
 @dl-card-bg: var(--dl-card-bg);
-@dl-card-radius: 10px;
-@dl-card-shadow: var(--dl-card-shadow);
-@dl-title-bar: var(--dl-title-bar);
-@dl-title-border: var(--dl-title-border);
 @dl-title-color: var(--dl-title-color);
 @dl-amount-color: var(--dl-amount-color);
 @dl-price-color: var(--dl-price-color);
@@ -77,81 +62,188 @@ body {
     'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 }
 
-// ---------- 页面主内容区 ----------
+// ---------- 滚动条规范（07 §7：全站 thin 暗色，禁原生默认滚动条） ----------
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dl-scrollbar) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dl-scrollbar);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+// ---------- 页面表面（07 §3.1：贴壳满幅，无内边距无背景；表面色由 .dl-content 承担） ----------
 .dl-page {
-  padding: 16px;
-  background: @dl-bg-page;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: transparent;
   min-height: 100%;
 }
 
-.dl-page-card {
-  background: @dl-card-bg;
-  border-radius: @dl-card-radius;
-  box-shadow: @dl-card-shadow;
-  padding: 16px;
+// ---------- 页头行（07 §3.2：标题 + 内联筛选 + 操作） ----------
+.dl-page-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--dl-border-light);
 }
 
-// 查询卡片与结果卡片间距 12-16px（§5.2）
-.dl-page-card + .dl-page-card {
-  margin-top: 12px;
+.dl-page-header.dl-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--dl-card-bg);
 }
 
-// 设置页 Tab 内分区（拍平：不套卡，直接坐在页面卡表面，标题用 dl-card-title）
-.dl-tab-section + .dl-tab-section {
-  margin-top: 16px;
+.dl-page-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dl-title-color);
+  white-space: nowrap;
 }
 
-// Card 标题：蓝色小竖条 + 底部边框（§5.1）
-.dl-card-title {
+.dl-page-header-right {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  flex-wrap: wrap;
+}
+
+// ---------- 选择条（rowSelection 勾选后出现） ----------
+.dl-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--dl-border-light);
+  background: var(--dl-hover-bg);
+}
+
+.dl-selection-count {
+  font-size: 13px;
+  color: var(--dl-text-secondary);
+  white-space: nowrap;
+}
+
+// ---------- 页脚行（共 N 条 + 分页） ----------
+.dl-page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--dl-border-light);
+}
+
+.dl-footer-total {
+  font-size: 13px;
+  color: var(--dl-text-secondary);
+  white-space: nowrap;
+}
+
+// ---------- 小节（07 §3：纯文字标题，无竖条/底边框/背景块） ----------
+.dl-section {
+  margin-bottom: 24px;
+}
+
+.dl-section:last-child {
+  margin-bottom: 0;
+}
+
+.dl-section-title {
+  margin: 0 0 16px;
+  font-size: 13px;
   font-weight: 600;
-  color: @dl-title-color;
-  padding-bottom: 12px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid @dl-title-border;
+  color: var(--dl-title-color);
+}
 
-  &::before {
-    content: '';
-    display: inline-block;
-    width: 4px;
-    height: 14px;
-    background: @dl-title-bar;
-    border-radius: 1px;
-    flex: none;
+// ---------- 设置页 Tab 小节（07 §3.4：Tab 内 860 居中小节流，小节间细分隔线） ----------
+.dl-tab-section {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.dl-tab-section + .dl-tab-section {
+  border-top: 1px solid var(--dl-border-light);
+}
+
+// ---------- 描边 tile（07 §3.5：内容物件，非 chrome 容器） ----------
+.dl-tile {
+  border: 1px solid var(--dl-border-light);
+  border-radius: 8px;
+  padding: 12px;
+  background: transparent;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--dl-primary) 45%, transparent);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   }
 }
 
-// ---------- 表格基础（§5.5） ----------
-// 首列 padding-left 24px，末列 padding-right 24px
-.dl-table {
-  .ant-table-thead > tr > th:first-child,
-  .ant-table-tbody > tr > td:first-child {
-    padding-left: 24px;
-  }
-
-  .ant-table-thead > tr > th:last-child,
-  .ant-table-tbody > tr > td:last-child {
-    padding-right: 24px;
-  }
+// ---------- 向导栏与内容（07 §3.3） ----------
+.dl-wizard-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--dl-border-light);
+  background: var(--dl-card-bg);
 }
 
-// ---------- 表单基础（§5.7） ----------
+.dl-wizard-bar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dl-title-color);
+  white-space: nowrap;
+}
+
+.dl-wizard-body {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+// ---------- 表单基础（07 §3.3：2 列网格；textarea/upload 独占行） ----------
 .dl-form {
   .ant-form-item-label > label {
     justify-content: flex-end; // 标签右对齐
   }
 }
 
-// textarea / upload 独占一行
 .dl-form-item-full {
   grid-column: 1 / -1;
   width: 100%;
 }
 
-// ---------- 金额显示（§5.3） ----------
+// ---------- 金额显示 ----------
 .dl-amount {
   color: @dl-amount-color;
   font-weight: 600;
@@ -162,21 +254,45 @@ body {
   font-weight: 600;
 }
 
-// ---------- sticky 标题栏（§5.7/§5.9） ----------
-.dl-sticky-bar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: @dl-card-bg;
-  border-radius: @dl-card-radius;
-  box-shadow: @dl-card-shadow;
-  padding: 12px 16px;
+// ---------- 表格规范（07 §7：表头透明、单元格 13px、禁横向 max-content、固定列分界线禁用） ----------
+.dl-table {
+  .ant-table,
+  .ant-table-container,
+  .ant-table-content {
+    background: transparent;
+  }
+
+  .ant-table-thead > tr > th {
+    background: transparent;
+    color: var(--dl-text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--dl-border-light);
+
+    &::before {
+      display: none !important; // 表头列间小竖线
+    }
+  }
+
+  .ant-table-tbody > tr > td {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+
+  // 固定列分界阴影线禁用（07 §7）
+  .ant-table-cell-fix-right-last::after,
+  .ant-table-cell-fix-left-last::after {
+    display: none !important;
+  }
 }
 
-// ---------- 悬浮锚点（§5.8） ----------
+// ---------- 详情空值 ----------
+.dl-empty-value {
+  color: var(--dl-text-secondary);
+}
+
+// ---------- 悬浮锚点（§5.8；面板坐浮层） ----------
 .dl-anchor-float {
   position: fixed;
   right: 24px;
@@ -187,8 +303,9 @@ body {
 .dl-anchor-float-panel {
   width: 180px;
   background: var(--dl-card-bg);
+  border: 1px solid var(--dl-border-light);
   border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   padding: 12px 16px;
   max-height: 60vh;
   overflow-y: auto;
@@ -206,12 +323,7 @@ body {
   border-bottom: 1px solid var(--dl-border-light);
 }
 
-// ---------- 详情空值（§5.9） ----------
-.dl-empty-value {
-  color: var(--dl-text-secondary);
-}
-
-// ---------- 侧栏表面统一（中性黑家族，弃用 AntdV 藏青 #001529） ----------
+// ---------- 侧栏坐页面底（07 §2.1；与内容表面形成明暗分层） ----------
 .ant-layout-sider.dl-sider {
   background: var(--dl-sider-bg) !important;
 

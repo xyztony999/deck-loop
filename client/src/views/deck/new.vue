@@ -160,56 +160,43 @@ function onCancel(): void {
 </script>
 
 <template>
-  <div class="dl-page deck-wizard">
-    <DlCardPage
-      ref="wizardRef"
-      :config="config"
-      :detail-id="editDeckId"
-      @success="onSaveSuccess"
-      @cancel="onCancel"
-    >
-      <!-- deckType：字典 radio；DOC/POSTER 置灰「即将支持」（deck.md §5） -->
-      <template #field-deckType="{ formData }">
-        <a-radio-group
-          :value="(formData.deckType as string | undefined)"
-          @update:value="(v: unknown) => (formData.deckType = v)"
+  <!-- 07 v2.0：引擎即页面根（单表面）；deck.md §5 无「暂存」——引擎仅在
+       config 声明 saveDraftAction 时渲染暂存按钮，本向导未声明，天然无暂存 -->
+  <DlCardPage
+    ref="wizardRef"
+    :config="config"
+    :detail-id="editDeckId"
+    @success="onSaveSuccess"
+    @cancel="onCancel"
+  >
+    <!-- deckType：字典 radio；DOC/POSTER 置灰「即将支持」（deck.md §5） -->
+    <template #field-deckType="{ formData }">
+      <a-radio-group
+        :value="(formData.deckType as string | undefined)"
+        @update:value="(v: unknown) => (formData.deckType = v)"
+      >
+        <a-radio
+          v-for="opt in deckTypeDict.options(DECK_DICT_TYPE)"
+          :key="opt.value"
+          :value="opt.value"
+          :disabled="opt.value !== DECK_TYPE_DECK"
         >
-          <a-radio
-            v-for="opt in deckTypeDict.options(DECK_DICT_TYPE)"
-            :key="opt.value"
-            :value="opt.value"
-            :disabled="opt.value !== DECK_TYPE_DECK"
-          >
-            {{ opt.label }}{{ opt.value === DECK_TYPE_DECK ? '' : '（即将支持）' }}
-          </a-radio>
-        </a-radio-group>
-      </template>
+          {{ opt.label }}{{ opt.value === DECK_TYPE_DECK ? '' : '（即将支持）' }}
+        </a-radio>
+      </a-radio-group>
+    </template>
 
-      <!-- 品牌规范：asset.select.brandkitList 选择池（可跳过） -->
-      <template #field-defaultBrandKitId="{ formData }">
-        <a-select
-          :value="(formData.defaultBrandKitId as string | undefined)"
-          :options="brandkitOptions"
-          placeholder="请选择品牌规范（可跳过）"
-          show-search
-          option-filter-prop="label"
-          allow-clear
-          @update:value="(v: unknown) => (formData.defaultBrandKitId = v)"
-        />
-      </template>
-    </DlCardPage>
-  </div>
+    <!-- 品牌规范：asset.select.brandkitList 选择池（可跳过） -->
+    <template #field-defaultBrandKitId="{ formData }">
+      <a-select
+        :value="(formData.defaultBrandKitId as string | undefined)"
+        :options="brandkitOptions"
+        placeholder="请选择品牌规范（可跳过）"
+        show-search
+        option-filter-prop="label"
+        allow-clear
+        @update:value="(v: unknown) => (formData.defaultBrandKitId = v)"
+      />
+    </template>
+  </DlCardPage>
 </template>
-
-<style scoped>
-/*
- * deck.md §5 向导按钮组为 上一步/下一步/保存并开始生成/取消（无「暂存」）。
- * 引擎 DlCardPage 固定渲染暂存按钮（无 saveDraftAction 时为空操作），
- * 页面内隐藏；末步按钮文案为引擎固定的「提交」（语义=保存并开始生成），
- * 见批次报告遗留项。注：引擎悬浮锚点 Teleport 到 body、页面 scoped 样式
- * 无法触达，向导跨步锚点链接为 no-op，保留引擎默认行为。
- */
-.deck-wizard :deep(.dl-card-bar .ant-space .ant-space-item:first-child .ant-btn) {
-  display: none;
-}
-</style>

@@ -100,23 +100,17 @@ function onBatchRestore(): void {
 }
 
 // ---------------------------------------------------------------
-// 呈现层派生列（当前版本 v{seq}、版本/调整）+ 空态引导（§8）
+// 呈现层派生列（当前版本 v{seq}、版本/调整）；空态引导经引擎 #empty 槽
 // ---------------------------------------------------------------
 
-const showEmptyGuide = ref(false)
-
 watch(
-  () => ({
-    rows: listRef.value?.list.records.value,
-    total: listRef.value?.list.total.value,
-  }),
-  ({ rows, total }) => {
+  () => listRef.value?.list.records.value,
+  (rows) => {
     for (const row of (rows ?? []) as DeckListRow[]) {
       row.currentVersionText =
         row.currentVersionSeq == null ? '-' : `v${row.currentVersionSeq}`
       row.versionAdjustText = `${row.versionCount ?? 0} / ${row.adjustCount ?? 0}`
     }
-    showEmptyGuide.value = (total ?? 0) === 0 && !archiveMode.value
   },
   { immediate: true },
 )
@@ -238,122 +232,105 @@ function goIterate(row: RowWithOperList): void {
 </script>
 
 <template>
-  <div class="dl-page">
-    <!-- 归档区工具条（deck.md §4.1 archivedScope switch + §4.2 批量恢复） -->
-    <div class="dl-page-card deck-archive-bar">
+  <!-- 07 v2.0 单表面：引擎即页面根；归档开关进页头、批量恢复进选择条、空态引导进 #empty -->
+  <DlListPage
+    ref="listRef"
+    :config="deckListConfig"
+    @toolbar-click="onToolbarClick"
+    @row-click="onRowClick"
+    @link-click="onLinkClick"
+    @selection-change="onSelectionChange"
+  >
+    <!-- 归档区入口（deck.md §4.1 archivedScope switch，坐页头行） -->
+    <template #header-extra>
       <span class="deck-archive-label">查看归档区</span>
       <a-switch v-model:checked="archiveMode" size="small" @change="onArchiveScopeChange" />
-      <a-divider type="vertical" />
-      <a-button
-        size="small"
-        :disabled="!archiveMode || selectedRows.length === 0"
-        @click="onBatchRestore"
-      >
-        批量恢复{{ selectedRows.length > 0 ? `（${selectedRows.length}）` : '' }}
+    </template>
+
+    <!-- 批量恢复（deck.md §4.2，坐选择条；仅在归档区可用） -->
+    <template #selection-actions>
+      <a-button size="small" :disabled="!archiveMode" @click="onBatchRestore">
+        批量恢复
       </a-button>
-    </div>
+    </template>
 
-    <DlListPage
-      ref="listRef"
-      :config="deckListConfig"
-      @toolbar-click="onToolbarClick"
-      @row-click="onRowClick"
-      @link-click="onLinkClick"
-      @selection-change="onSelectionChange"
-    >
-      <!-- 卡片视图（§4.3 映射列语义；归档视觉弱化 §8） -->
-      <template #card="{ row }">
-        <div
-          class="deck-card"
-          :class="{ 'deck-card--archived': rowStatus(row) === DECK_STATUS.ARCHIVED }"
-        >
-          <div class="deck-card-head">
-            <a-button type="link" class="deck-card-name" @click="goDetail(row)">
-              {{ rowText(row, 'deckName') }}
-            </a-button>
-            <a-tag :color="dict.color(DECK_DICT_STATUS, rowStatus(row))">
-              {{ dict.label(DECK_DICT_STATUS, rowStatus(row)) }}
-            </a-tag>
-          </div>
-          <p class="deck-card-topic">{{ rowText(row, 'topic') || '—' }}</p>
-          <div class="deck-card-meta">
-            <span>{{ dict.label(DECK_DICT_TYPE, rowText(row, 'deckType')) }}</span>
-            <span>当前版本 {{ rowText(row, 'currentVersionText') || '-' }}</span>
-            <span>
-              版本 {{ rowText(row, 'versionCount') || '0' }} /
-              调整 {{ rowText(row, 'adjustCount') || '0' }}
-            </span>
-          </div>
-          <div class="deck-card-foot">
-            <span class="deck-card-time">{{ formatDatetime(rowText(row, 'updatedTime')) }}</span>
-            <a-space :size="4">
-              <a-button
-                v-if="rowStatus(row) === DECK_STATUS.DRAFT"
-                size="small"
-                type="primary"
-                @click="goGenerate(row)"
-              >
-                开始生成
-              </a-button>
-              <a-button
-                v-else-if="
-                  rowStatus(row) === DECK_STATUS.ITERATING ||
-                  rowStatus(row) === DECK_STATUS.FINALIZED
-                "
-                size="small"
-                @click="goIterate(row)"
-              >
-                进入迭代
-              </a-button>
-            </a-space>
-          </div>
+    <!-- 卡片视图 = tile 内容（§4.3 映射列语义；归档视觉弱化 §8） -->
+    <template #card="{ row }">
+      <div
+        class="deck-card"
+        :class="{ 'deck-card--archived': rowStatus(row) === DECK_STATUS.ARCHIVED }"
+      >
+        <div class="deck-card-head">
+          <a-button type="link" class="deck-card-name" @click="goDetail(row)">
+            {{ rowText(row, 'deckName') }}
+          </a-button>
+          <a-tag :color="dict.color(DECK_DICT_STATUS, rowStatus(row))">
+            {{ dict.label(DECK_DICT_STATUS, rowStatus(row)) }}
+          </a-tag>
         </div>
-      </template>
-    </DlListPage>
+        <p class="deck-card-topic">{{ rowText(row, 'topic') || '—' }}</p>
+        <div class="deck-card-meta">
+          <span>{{ dict.label(DECK_DICT_TYPE, rowText(row, 'deckType')) }}</span>
+          <span>当前版本 {{ rowText(row, 'currentVersionText') || '-' }}</span>
+          <span>
+            版本 {{ rowText(row, 'versionCount') || '0' }} /
+            调整 {{ rowText(row, 'adjustCount') || '0' }}
+          </span>
+        </div>
+        <div class="deck-card-foot">
+          <span class="deck-card-time">{{ formatDatetime(rowText(row, 'updatedTime')) }}</span>
+          <a-space :size="4">
+            <a-button
+              v-if="rowStatus(row) === DECK_STATUS.DRAFT"
+              size="small"
+              type="primary"
+              @click="goGenerate(row)"
+            >
+              开始生成
+            </a-button>
+            <a-button
+              v-else-if="
+                rowStatus(row) === DECK_STATUS.ITERATING ||
+                rowStatus(row) === DECK_STATUS.FINALIZED
+              "
+              size="small"
+              @click="goIterate(row)"
+            >
+              进入迭代
+            </a-button>
+          </a-space>
+        </div>
+      </div>
+    </template>
 
-    <!-- 空态引导（deck.md §8） -->
-    <div v-if="showEmptyGuide" class="dl-page-card deck-empty-guide">
-      <a-empty description="还没有创作物">
-        <a-button type="primary" @click="router.push('/deck/new')">
+    <!-- 空态引导（deck.md §8；归档区空态不引导新建） -->
+    <template #empty>
+      <a-empty :description="archiveMode ? '归档区暂无内容' : '还没有创作物'">
+        <a-button
+          v-if="!archiveMode"
+          type="primary"
+          @click="router.push('/deck/new')"
+        >
           新建第一个创作物
         </a-button>
       </a-empty>
-    </div>
-  </div>
+    </template>
+  </DlListPage>
 </template>
 
 <style scoped>
-.deck-archive-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-}
-
 .deck-archive-label {
   color: var(--dl-text-secondary);
   font-size: 13px;
+  white-space: nowrap;
 }
 
+/* tile 内部布局（外框由引擎 .dl-tile 提供：描边 + hover 描边主色） */
 .deck-card {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--dl-card-bg);
-  border: 1px solid var(--dl-border-light);
-  border-radius: 10px;
-  box-shadow: var(--dl-card-shadow);
-  padding: 16px 16px;
   height: 100%;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
-}
-
-.deck-card:hover {
-  box-shadow: var(--dl-card-shadow-hover);
-  transform: translateY(-1px);
 }
 
 /* 归档区视觉弱化（deck.md §8） */

@@ -17,33 +17,43 @@ import AccountTab from './components/AccountTab.vue'
 </script>
 
 <template>
-  <div class="dl-page">
-    <div class="dl-page-card settings-card">
-      <a-tabs default-active-key="preference" class="settings-tabs">
-        <a-tab-pane key="general" tab="通用">
-          <GeneralTab />
-        </a-tab-pane>
-        <a-tab-pane key="preference" tab="生成偏好">
-          <PreferenceTab />
-        </a-tab-pane>
-        <a-tab-pane key="usage" tab="用量统计">
-          <UsageTab />
-        </a-tab-pane>
-        <a-tab-pane key="account" tab="账户">
-          <AccountTab />
-        </a-tab-pane>
-      </a-tabs>
-    </div>
+  <!-- 07 v2.0：Tab 坐表面顶部（下划线式），Tab 内为小节流 -->
+  <div class="dl-page settings-page">
+    <a-tabs default-active-key="preference" class="settings-tabs">
+      <a-tab-pane key="general" tab="通用">
+        <GeneralTab />
+      </a-tab-pane>
+      <a-tab-pane key="preference" tab="生成偏好">
+        <PreferenceTab />
+      </a-tab-pane>
+      <a-tab-pane key="usage" tab="用量统计">
+        <UsageTab />
+      </a-tab-pane>
+      <a-tab-pane key="account" tab="账户">
+        <AccountTab />
+      </a-tab-pane>
+    </a-tabs>
   </div>
 </template>
 
 <style scoped>
-.settings-card {
-  padding-bottom: 8px;
+.settings-page {
+  display: flex;
+  flex-direction: column;
 }
 
-/* Tab 内容区去掉 antd tabs 默认上边距，交给各 Tab 卡片间距 */
+.settings-tabs {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
 .settings-tabs :deep(.ant-tabs-content-holder) {
-  padding: 0 0 8px;
+  flex: 1 0 auto;
+}
+
+.settings-tabs :deep(.ant-tabs-nav) {
+  margin: 0;
+  padding: 8px 24px 0;
 }
 </style>

@@ -62,7 +62,8 @@ function buildDefaultChannels(): GatewayChannelDefinition[] {
       channelName: '内置模拟渠道',
       priority: 100,
       enabled: true,
-      apiKey: 'local-mock-key-not-a-secret',
+      // 合成 mock key 非真实密钥；可经 GATEWAY_MOCK_API_KEY 覆盖
+      apiKey: process.env.GATEWAY_MOCK_API_KEY ?? 'local-mock-key-not-a-secret',
       models: [
         {
           modelCode: 'MOCK-LITE',

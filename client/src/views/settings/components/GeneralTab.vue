@@ -21,7 +21,7 @@ function onModeChange(v: unknown): void {
 
 <template>
   <div class="dl-tab-section">
-    <div class="dl-card-title">外观</div>
+    <div class="dl-section-title">外观</div>
     <div class="general-row">
       <div class="general-meta">
         <div class="general-label">主题模式</div>

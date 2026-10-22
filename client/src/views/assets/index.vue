@@ -43,41 +43,46 @@ const highlightAssetId = firstQuery(route.query.highlight)
 </script>
 
 <template>
+  <!-- 07 v2.0：Tab 坐表面顶部（下划线式），Tab 内容 = 引擎单表面列表 -->
   <div class="dl-page assets-page">
-    <div class="dl-page-card assets-shell">
-      <a-tabs v-model:active-key="activeKey" class="assets-tabs">
-        <a-tab-pane key="asset" tab="素材库">
-          <AssetTab :highlight-asset-id="highlightAssetId" />
-        </a-tab-pane>
-        <a-tab-pane key="brandkit" tab="品牌规范">
-          <BrandkitTab />
-        </a-tab-pane>
-        <a-tab-pane key="prompt" tab="话术库">
-          <PromptTab />
-        </a-tab-pane>
-      </a-tabs>
-    </div>
+    <a-tabs v-model:active-key="activeKey" class="assets-tabs">
+      <a-tab-pane key="asset" tab="素材库">
+        <AssetTab :highlight-asset-id="highlightAssetId" />
+      </a-tab-pane>
+      <a-tab-pane key="brandkit" tab="品牌规范">
+        <BrandkitTab />
+      </a-tab-pane>
+      <a-tab-pane key="prompt" tab="话术库">
+        <PromptTab />
+      </a-tab-pane>
+    </a-tabs>
   </div>
 </template>
 
 <style scoped>
-.assets-shell {
-  padding: 8px 16px 16px;
+.assets-page {
+  /* Tab 流占满表面：页签行贴顶、内容区随内容伸展 */
+  display: flex;
+  flex-direction: column;
 }
 
-/* 内嵌 DlListPage：去掉其页面级灰底/内边距，融入 Tab 卡片（gen 先例） */
-.assets-tabs :deep(.dl-page) {
-  padding: 0;
-  background: transparent;
-  min-height: auto;
+.assets-tabs {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
 }
 
-.assets-tabs :deep(.dl-page-card) {
-  box-shadow: none;
-  padding: 0;
+.assets-tabs :deep(.ant-tabs-content-holder) {
+  flex: 1 0 auto;
 }
 
 .assets-tabs :deep(.ant-tabs-nav) {
-  margin-bottom: 12px;
+  margin: 0;
+  padding: 8px 24px 0;
+}
+
+/* 内嵌引擎 .dl-page：嵌套场景不占满屏，随 Tab 内容伸展 */
+.assets-tabs :deep(.dl-page) {
+  min-height: auto;
 }
 </style>

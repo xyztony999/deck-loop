@@ -227,7 +227,7 @@ function onReset(): void {
   <a-spin :spinning="loading">
     <!-- 默认渠道/模型 + 平台兜底（§4） -->
     <div class="dl-tab-section">
-      <div class="dl-card-title">默认渠道 / 模型</div>
+      <div class="dl-section-title">默认渠道 / 模型</div>
 
       <a-form class="dl-form" layout="vertical">
         <div class="pref-grid">
@@ -276,7 +276,7 @@ function onReset(): void {
 
     <!-- 分任务档位（§4：可空=回落默认） -->
     <div class="dl-tab-section">
-      <div class="dl-card-title">按任务类型档位</div>
+      <div class="dl-section-title">按任务类型档位</div>
       <a-alert
         class="pref-tier-tip"
         type="info"

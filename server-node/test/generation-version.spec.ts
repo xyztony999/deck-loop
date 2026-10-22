@@ -11,6 +11,7 @@
 import { GenerationTaskDomainService } from '../src/generation/generation.domain-service';
 import { GenerationTaskCreateCommand } from '../src/generation/generation.dto';
 import {
+  MOCK_CHANNEL_API_KEY,
   TestContext,
   archiveVersion,
   awaitTaskTerminal,
@@ -30,7 +31,7 @@ const TEST_GATEWAY_CHANNELS = JSON.stringify([
     channelName: '内置模拟渠道',
     priority: 100,
     enabled: true,
-    apiKey: 'local-mock-key-not-a-secret',
+    apiKey: MOCK_CHANNEL_API_KEY,
     models: [
       {
         modelCode: 'MOCK-LITE',

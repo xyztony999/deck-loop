@@ -220,8 +220,8 @@ function onToolbarClick(btn: { key: string }): void {
 
 <template>
   <div class="asset-tab">
-    <!-- 勾选状态条（批量停用选择反馈） -->
-    <div v-if="selectedAssetIds.length > 0" class="dl-page-card asset-select-bar">
+    <!-- 勾选状态条（批量停用选择反馈；07 v2.0 选择条形态） -->
+    <div v-if="selectedAssetIds.length > 0" class="asset-select-bar">
       <span>已选 {{ selectedActiveRows.length }} 项（仅启用态参与停用）</span>
       <a-button type="link" size="small" @click="clearSelection">清空选择</a-button>
     </div>
@@ -332,36 +332,24 @@ function onToolbarClick(btn: { key: string }): void {
 </template>
 
 <style scoped>
-/* 覆盖 Tab 壳对内嵌 .dl-page-card 的展平（提高选择器优先级，稳定胜出） */
-.asset-tab .dl-page-card.asset-select-bar {
+.asset-select-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-  padding: 8px 16px;
+  gap: 8px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--dl-border-light);
+  background: var(--dl-hover-bg);
   font-size: 13px;
   color: var(--dl-text-secondary);
 }
 
+/* tile 内部布局（外框由引擎 .dl-tile 提供：描边 + hover 主色描边） */
 .asset-card {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--dl-card-bg);
-  border: 1px solid var(--dl-border-light);
-  border-radius: 10px;
-  box-shadow: var(--dl-card-shadow);
-  padding: 12px 16px;
   height: 100%;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
-}
-
-.asset-card:hover:not(.asset-card--highlight) {
-  box-shadow: var(--dl-card-shadow-hover);
-  transform: translateY(-1px);
 }
 
 /* 停用态视觉弱化（启停生命周期） */
@@ -369,10 +357,10 @@ function onToolbarClick(btn: { key: string }): void {
   opacity: 0.55;
 }
 
-/* 工作台引用选择器直达高亮（PageSpec §8） */
+/* 工作台引用选择器直达高亮（PageSpec §8）：自绘主色环 */
 .asset-card--highlight {
-  border-color: var(--dl-primary);
-  box-shadow: 0 0 0 2px rgba(107, 138, 181, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dl-primary) 40%, transparent);
 }
 
 .asset-card-head {

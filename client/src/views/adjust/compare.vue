@@ -21,8 +21,30 @@ function close(): void {
 
 <template>
   <VersionCompareDrawer v-if="target" :open="true" :deck-id="deckId" :target="target" @update:open="close" />
-  <div v-else class="dl-page dl-page-card">
-    <a-alert type="warning" message="缺少对比版本，请从版本树选择两个版本后对比" show-icon />
-    <a-button @click="close">返回迭代工作台</a-button>
+  <div v-else class="dl-page">
+    <div class="dl-page-header">
+      <h1 class="dl-page-title">版本对比</h1>
+    </div>
+    <div class="compare-fallback-body">
+      <a-alert type="warning" message="缺少对比版本，请从版本树选择两个版本后对比" show-icon />
+      <div class="compare-fallback-actions">
+        <a-button @click="close">返回迭代工作台</a-button>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.compare-fallback-body {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.compare-fallback-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+</style>

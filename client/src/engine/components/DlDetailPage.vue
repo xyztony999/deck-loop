@@ -1,9 +1,8 @@
 <script setup lang="ts">
 /**
- * DlDetailPage — 详情页引擎（描述列表 + 锚点区块）。
+ * DlDetailPage v2 — 详情页引擎（07-ui-design-language.md §3.4 单表面形态）。
  *
- * 规约（frontend-specs §5.9 / D-01~03）：
- * - sticky 标题栏 + 右侧关闭按钮（type=default）
+ * 粘顶页头行（标题 + 关闭）→ 860 居中小节流。规约（D-01~03）保持：
  * - 空值统一 '-'；日期 YYYY-MM-DD HH:mm；金额按规范；字典 colorTag
  * - 区块 >=3 自动启用悬浮锚点（§5.8，Teleport body）
  */
@@ -78,24 +77,27 @@ const showAnchor = computed(() => blocks.value.length >= 3)
 
 <template>
   <div class="dl-page">
-    <!-- sticky 标题栏 + 关闭按钮（D-01） -->
-    <div class="dl-sticky-bar dl-detail-bar">
-      <span class="dl-bar-title">{{ config.title }}</span>
-      <a-button type="default" @click="emit('close')">
-        <CloseOutlined />
-        关闭
-      </a-button>
+    <!-- 粘顶页头行 + 动作槽 + 关闭按钮（D-01；07 v2.0 页头行） -->
+    <div class="dl-page-header dl-sticky">
+      <h1 class="dl-page-title">{{ config.title }}</h1>
+      <div class="dl-page-header-right">
+        <slot name="header-actions" />
+        <a-button @click="emit('close')">
+          <CloseOutlined />
+          关闭
+        </a-button>
+      </div>
     </div>
 
-    <a-skeleton :loading="loading" active :paragraph="{ rows: 6 }">
+    <a-skeleton :loading="loading" active :paragraph="{ rows: 6 }" class="dl-detail-body">
       <div
         v-for="block in blocks"
         :id="`dl-detail-${block.key}`"
         :key="block.key"
-        class="dl-page-card"
+        class="dl-section"
       >
-        <div class="dl-card-title">{{ block.title }}</div>
-        <a-descriptions :column="3" size="small">
+        <h3 class="dl-section-title">{{ block.title }}</h3>
+        <a-descriptions :column="2" size="small">
           <a-descriptions-item
             v-for="f in block.fields"
             :key="f.field"
@@ -158,13 +160,11 @@ const showAnchor = computed(() => blocks.value.length >= 3)
 </template>
 
 <style scoped>
-.dl-detail-bar {
-  margin-bottom: 12px;
-}
-
-.dl-bar-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--dl-title-color);
+.dl-detail-body {
+  display: block;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px;
 }
 </style>

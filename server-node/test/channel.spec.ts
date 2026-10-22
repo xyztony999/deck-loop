@@ -15,6 +15,7 @@
  */
 import { ChannelPreferenceService } from '../src/channel/channel.service';
 import {
+  MOCK_CHANNEL_API_KEY,
   TestContext,
   okData,
   bizFail,
@@ -27,7 +28,7 @@ const TEST_GATEWAY_CHANNELS = JSON.stringify([
     channelName: '内置模拟渠道',
     priority: 100,
     enabled: true,
-    apiKey: 'local-mock-key-not-a-secret',
+    apiKey: MOCK_CHANNEL_API_KEY,
     models: [
       {
         modelCode: 'MOCK-LITE',

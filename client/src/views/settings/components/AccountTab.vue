@@ -100,7 +100,7 @@ onMounted(() => {
   <a-spin :spinning="loading">
     <!-- 账户信息（§6：email/昵称 + 昵称编辑） -->
     <div class="dl-tab-section">
-      <div class="dl-card-title">账户信息</div>
+      <div class="dl-section-title">账户信息</div>
       <a-descriptions :column="1" size="small">
         <a-descriptions-item label="邮箱">{{ emailText }}</a-descriptions-item>
         <a-descriptions-item label="昵称">
@@ -125,7 +125,7 @@ onMounted(() => {
 
     <!-- 多端同步（§6：当前游标/最近同步时间 + 立即同步） -->
     <div class="dl-tab-section">
-      <div class="dl-card-title">多端同步</div>
+      <div class="dl-section-title">多端同步</div>
       <a-descriptions :column="2" size="small">
         <a-descriptions-item label="当前游标">{{ cursorText }}</a-descriptions-item>
         <a-descriptions-item label="最近同步时间">{{ lastSyncText }}</a-descriptions-item>
@@ -137,7 +137,7 @@ onMounted(() => {
 
     <!-- 会话（§6：登录态到期 + 退出登录） -->
     <div class="dl-tab-section">
-      <div class="dl-card-title">会话</div>
+      <div class="dl-section-title">会话</div>
       <a-descriptions :column="1" size="small">
         <a-descriptions-item label="登录态">
           <!-- TODO 请确认：后端未返回登录态到期时间字段（token 30 天滑动，

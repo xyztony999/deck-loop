@@ -515,36 +515,38 @@ const activeTab = ref('instruction')
 
 <template>
   <div class="dl-page adjust-page">
-    <!-- 缺参守卫：无 deckId 无法锚定工作台 -->
-    <div v-if="!deckId" class="dl-page-card">
-      <div class="dl-card-title">迭代工作台</div>
-      <a-alert
-        type="warning"
-        show-icon
-        message="缺少创作物标识（deckId），请从创作物列表或详情进入"
-      />
-      <div class="adjust-guard-actions">
-        <a-button type="primary" @click="router.push('/deck')">返回创作物列表</a-button>
+    <template v-if="!deckId || draftGuard">
+      <div class="dl-page-header">
+        <h1 class="dl-page-title">迭代工作台</h1>
       </div>
-    </div>
-
-    <!-- DRAFT 守卫：无版本可迭代，引导生成向导 -->
-    <div v-else-if="draftGuard" class="dl-page-card">
-      <div class="dl-card-title">迭代工作台</div>
-      <a-alert
-        type="info"
-        show-icon
-        message="该创作物尚未生成初稿"
-        description="迭代工作台基于内容版本工作，请先在生成向导完成初稿生成。"
-      />
-      <div class="adjust-guard-actions">
-        <a-button type="primary" @click="goGenerate">前往生成向导</a-button>
+      <div class="adjust-guard-body">
+        <!-- 缺参守卫：无 deckId 无法锚定工作台 -->
+        <a-alert
+          v-if="!deckId"
+          type="warning"
+          show-icon
+          message="缺少创作物标识（deckId），请从创作物列表或详情进入"
+        />
+        <!-- DRAFT 守卫：无版本可迭代，引导生成向导 -->
+        <a-alert
+          v-else
+          type="info"
+          show-icon
+          message="该创作物尚未生成初稿"
+          description="迭代工作台基于内容版本工作，请先在生成向导完成初稿生成。"
+        />
+        <div class="adjust-guard-actions">
+          <a-button v-if="!deckId" type="primary" @click="router.push('/deck')">
+            返回创作物列表
+          </a-button>
+          <a-button v-else type="primary" @click="goGenerate">前往生成向导</a-button>
+        </div>
       </div>
-    </div>
+    </template>
 
     <template v-else>
-      <!-- 顶栏：deckName · 状态 tag · 当前版本 v{seq}·分支 · 定稿/导出（§4） -->
-      <div class="dl-page-card adjust-topbar">
+      <!-- 顶栏 = 页头行：deckName · 状态 tag · 当前版本 v{seq}·分支 · 定稿/导出（§4；07 v2.0） -->
+      <div class="dl-page-header adjust-topbar">
         <div class="adjust-topbar-left">
           <span class="adjust-topbar-name">{{ deck?.deckName ?? '迭代工作台' }}</span>
           <a-tag
@@ -558,25 +560,27 @@ const activeTab = ref('instruction')
           </a-tag>
           <span v-else class="adjust-topbar-nover">暂无当前版本</span>
         </div>
-        <a-space>
-          <a-button v-if="deckStatus === DECK_STATUS.ITERATING" @click="confirmFinalize">
-            定稿
-          </a-button>
-          <a-button
-            v-if="deckStatus === DECK_STATUS.FINALIZED"
-            type="primary"
-            @click="goExport"
-          >
-            导出
-          </a-button>
-          <a-button
-            v-if="deckStatus === DECK_STATUS.FINALIZED"
-            @click="goPresent"
-          >
-            演示
-          </a-button>
-          <a-button @click="goDeckDetail">返回详情</a-button>
-        </a-space>
+        <div class="dl-page-header-right">
+          <a-space>
+            <a-button v-if="deckStatus === DECK_STATUS.ITERATING" @click="confirmFinalize">
+              定稿
+            </a-button>
+            <a-button
+              v-if="deckStatus === DECK_STATUS.FINALIZED"
+              type="primary"
+              @click="goExport"
+            >
+              导出
+            </a-button>
+            <a-button
+              v-if="deckStatus === DECK_STATUS.FINALIZED"
+              @click="goPresent"
+            >
+              演示
+            </a-button>
+            <a-button @click="goDeckDetail">返回详情</a-button>
+          </a-space>
+        </div>
       </div>
 
       <!-- 只读态横幅（§1：FINALIZED 提示解锁 / ARCHIVED 提示恢复） -->
@@ -605,9 +609,9 @@ const activeTab = ref('instruction')
         </template>
       </a-alert>
 
-      <!-- 三区主体：左画布 60% / 右指令与版本面板 40%（§4） -->
+      <!-- 三区主体：左画布 60% / 右指令与版本面板 40%（§4；07 v2.0 描边面板） -->
       <div class="adjust-main">
-        <div class="dl-page-card adjust-left">
+        <div class="adjust-panel adjust-left">
           <DeckPreviewCanvas
             :pages="versionContent.pages.value"
             :file-urls="versionContent.fileUrls.value"
@@ -626,7 +630,7 @@ const activeTab = ref('instruction')
           />
         </div>
 
-        <div class="dl-page-card adjust-right">
+        <div class="adjust-panel adjust-right">
           <a-tabs v-model:active-key="activeTab" size="small">
             <!-- Tab1 调整指令（§4.2） -->
             <a-tab-pane key="instruction" tab="调整指令">
@@ -692,21 +696,20 @@ const activeTab = ref('instruction')
 .adjust-page {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+}
+
+.adjust-guard-body {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px;
 }
 
 .adjust-guard-actions {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
-}
-
-.adjust-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
 }
 
 .adjust-topbar-left {
@@ -718,7 +721,7 @@ const activeTab = ref('instruction')
 }
 
 .adjust-topbar-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--dl-title-color);
 }
@@ -735,12 +738,15 @@ const activeTab = ref('instruction')
 .adjust-main {
   display: grid;
   grid-template-columns: 3fr 2fr; /* 60% / 40%（§4） */
-  gap: 12px;
+  gap: 16px;
   align-items: stretch;
 }
 
-.adjust-left,
-.adjust-right {
+/* 07 v2.0 工作台面板：描边区域（tile 语言），非第二层表面卡片 */
+.adjust-panel {
+  border: 1px solid var(--dl-border-light);
+  border-radius: 8px;
+  padding: 12px;
   min-width: 0;
 }
 
@@ -754,16 +760,9 @@ const activeTab = ref('instruction')
   overflow-y: auto;
 }
 
-/* 内嵌 DlListPage：去掉其页面级灰底/内边距，融入 Tab 面板 */
+/* 嵌套引擎 .dl-page：随内容伸展，不占满屏 */
 .adjust-task-list :deep(.dl-page) {
-  padding: 0;
-  background: transparent;
   min-height: auto;
-}
-
-.adjust-task-list :deep(.dl-page-card) {
-  box-shadow: none;
-  padding: 0;
 }
 
 @media (max-width: 1100px) {

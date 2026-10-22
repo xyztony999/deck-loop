@@ -168,10 +168,15 @@ async function onAction(act: DeckDetailAction): Promise<void> {
 </script>
 
 <template>
-  <div class="dl-page deck-detail">
-    <!-- 操作按钮区（deck.md §6：状态驱动，同 operList 语义） -->
-    <div class="dl-page-card deck-detail-ops">
-      <div class="dl-card-title">操作</div>
+  <!-- 07 v2.0：引擎即页面根；操作按钮坐页头行（deck.md §6 状态驱动，同 operList 语义） -->
+  <DlDetailPage
+    :config="deckDetailConfig"
+    :data="display"
+    domain="deck"
+    :loading="loading"
+    @close="onClose"
+  >
+    <template #header-actions>
       <a-space wrap>
         <a-button
           v-for="act in actions"
@@ -183,25 +188,17 @@ async function onAction(act: DeckDetailAction): Promise<void> {
           {{ act.label }}
         </a-button>
       </a-space>
-    </div>
+    </template>
 
-    <DlDetailPage
-      :config="deckDetailConfig"
-      :data="display"
-      domain="deck"
-      :loading="loading"
-      @close="onClose"
-    >
-      <!-- 最近任务状态 tag（deck.md §6；task.TaskStatus 属 gen 域字典） -->
-      <template #field-latestTaskText>
-        <a-tag
-          v-if="latestTaskStatus"
-          :color="taskDict.color(TASK_DICT_STATUS, latestTaskStatus)"
-        >
-          {{ taskDict.label(TASK_DICT_STATUS, latestTaskStatus) }}
-        </a-tag>
-        <span v-else class="dl-empty-value">暂无</span>
-      </template>
-    </DlDetailPage>
-  </div>
+    <!-- 最近任务状态 tag（deck.md §6；task.TaskStatus 属 gen 域字典） -->
+    <template #field-latestTaskText>
+      <a-tag
+        v-if="latestTaskStatus"
+        :color="taskDict.color(TASK_DICT_STATUS, latestTaskStatus)"
+      >
+        {{ taskDict.label(TASK_DICT_STATUS, latestTaskStatus) }}
+      </a-tag>
+      <span v-else class="dl-empty-value">暂无</span>
+    </template>
+  </DlDetailPage>
 </template>

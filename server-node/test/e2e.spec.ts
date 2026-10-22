@@ -12,6 +12,7 @@ import request from 'supertest';
 import {
   TestContext,
   awaitTaskTerminal,
+  TEST_PASSWORD,
   okData,
   postPublic,
   postJson,
@@ -38,16 +39,16 @@ describe('E2E 全链路（EndToEndFlowTest 对齐）', () => {
     const tag = `e2e-${process.pid.toString(36)}-${Date.now().toString(36)}`;
     const email = `${tag}@e2e.test`;
     const register = okData(
-      await postPublic(ctx, '/auth/account/register', {
+      await postPublic(ctx, 'register', {
         email,
-        password: 'passw0rd!',
+        password: TEST_PASSWORD,
         nickname: 'e2e 用户',
       }),
       '注册',
     );
     const accountId = register.accountId;
     const login = okData(
-      await postPublic(ctx, '/auth/account/login', { email, password: 'passw0rd!' }),
+      await postPublic(ctx, 'login', { email, password: TEST_PASSWORD }),
       '登录',
     );
     expect(login.token).toBeTruthy();

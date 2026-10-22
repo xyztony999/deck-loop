@@ -148,7 +148,7 @@ function barPercent(row: UsageSummaryRow): number {
 <template>
   <!-- 查询区（§5：dimension 单选 + timeRange 必填） -->
   <div class="dl-tab-section">
-    <div class="dl-card-title">用量统计</div>
+    <div class="dl-section-title">用量统计</div>
     <div class="usage-query">
       <div class="usage-query-item">
         <span class="usage-query-label">统计维度</span>
@@ -189,7 +189,6 @@ function barPercent(row: UsageSummaryRow): number {
       :data-source="records"
       :loading="loading"
       :pagination="false"
-      :scroll="{ x: 'max-content' }"
       row-key="dimKey"
       size="middle"
     >

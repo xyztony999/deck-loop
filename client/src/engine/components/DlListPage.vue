@@ -1,28 +1,24 @@
 <script setup lang="ts">
 /**
- * DlListPage — 列表页引擎（ScmListPage 的 deck-loop 轻量等价）。
+ * DlListPage v2 — 列表页引擎（07-ui-design-language.md §3.2 单表面形态）。
  *
- * 查询区（defaultRowCount 折叠）+ 工具栏 + 表格/卡片切换 + 分页，
- * config 对象驱动（DlListPageConfig）。行为约定（frontend-specs）：
+ * 页头行（标题 + #header-extra + 内联筛选即查 + 操作）→ 选择条 → 平铺表格 → 页脚行。
+ * config 对象驱动（DlListPageConfig，协议与 v1 兼容）。行为约定：
+ * - 筛选变更即查（07 §8）：select/date/dateRange 变更或清空即查；input 回车或清空即查；
+ *   废除查询/重置按钮组；存在激活筛选时页头出现「重置」（仅清引擎自有筛选字段，
+ *   不动页面写入的额外键如 archivedScope）
+ * - 表格不设 scroll.x（07 §7：禁 max-content 横滚），fixed 仅作配置兼容忽略
  * - 行操作由后端每行 operList 驱动，rowActions 仅为过渡兜底（规则 6）
- * - 操作列 `{ dataIndex: '__action__', type: 'action' }`
- * - 字典列绑编码字段 + colorTag 渲染（§5.4）
- * - dateRange 查询字段 Arr → Start/End 自动拆分（§4.8，useListPage 内置）
- * - 列宽/对齐/fixed 由 config 按字段类型给出（§5.5）
+ * - 卡片视图 = 描边 tile（07 §3.5）；批量操作经 #selection-actions 槽
  */
 import { computed, ref, useSlots } from 'vue'
 import { Modal } from 'ant-design-vue'
-import {
-  DownOutlined,
-  SearchOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons-vue'
+import { DownOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 
 import type { ActionConfig, OperItem } from '../types'
 import type {
   ColumnConfig,
   DlListPageConfig,
-  QueryFieldConfig,
   RowWithOperList,
 } from '../pageSchemas'
 import { useDict, toSelectOptions } from '../dict'
@@ -73,48 +69,16 @@ const list = useListPage<RowWithOperList>({
 })
 
 // ---------------------------------------------------------------
-// 查询区（§5.2：3 列，超出 defaultRowCount*3 格折叠）
+// 内联筛选（07 §8：变更即查；重置仅清引擎自有字段）
 // ---------------------------------------------------------------
 
-const defaultRowCount = computed(() => props.config.defaultRowCount ?? 2)
-const expanded = ref(false)
+const queryFields = computed(() => props.config.queryFields ?? [])
 
-/** 每字段占的格数（dateRange 默认 2 列） */
-function units(f: QueryFieldConfig): number {
-  return f.span ?? (f.type === 'dateRange' ? 2 : 1)
-}
-
-const collapsedLimit = computed(() => defaultRowCount.value * 3)
-
-const visibleFieldCount = computed(() => {
-  const fields = props.config.queryFields ?? []
-  const totalUnits = fields.reduce((acc, f) => acc + units(f), 0)
-  if (expanded.value || totalUnits <= collapsedLimit.value) {
-    return fields.length
-  }
-  let acc = 0
-  let last = 0
-  for (let i = 0; i < fields.length; i++) {
-    acc += units(fields[i])
-    if (acc > collapsedLimit.value) break
-    last = i + 1
-  }
-  return Math.max(last, 1)
-})
-
-const visibleFields = computed(() =>
-  (props.config.queryFields ?? []).slice(0, visibleFieldCount.value),
-)
-const collapsible = computed(() =>
-  (props.config.queryFields?.length ?? 0) > visibleFieldCount.value,
-)
-
-function dictOptions(dictKey: string | undefined) {
+const dictOptions = (dictKey: string | undefined) => {
   if (!dictKey) return []
   return toSelectOptions(dict.options(dictKey))
 }
 
-// 动态字段绑定辅助（保持模板严格类型，不用 any）
 function strValue(field: string): string | undefined {
   const v = list.query[field]
   return typeof v === 'string' ? v : undefined
@@ -130,12 +94,48 @@ function rangeValue(field: string): [string, string] | undefined {
   }
   return undefined
 }
-function setQuery(field: string, value: unknown): void {
+
+/** 写入筛选并立即查询（select/date/dateRange 用：变更与清空都查） */
+function setAndSearch(field: string, value: unknown): void {
   list.query[field] = value
+  void list.search()
+}
+
+/** input：回车或清空才查（逐键不查） */
+function onInput(field: string, v: string): void {
+  list.query[field] = v
+  if (v === '') void list.search()
+}
+
+const hasActiveFilter = computed(() =>
+  queryFields.value.some((f) => {
+    const v = list.query[f.field]
+    if (Array.isArray(v)) return v.length > 0
+    return v != null && v !== ''
+  }),
+)
+
+/** 仅清引擎自有筛选字段（保留页面写入的额外键，如 archivedScope） */
+async function resetFilters(): Promise<void> {
+  queryFields.value.forEach((f) => {
+    delete list.query[f.field]
+  })
+  await list.search()
 }
 
 // ---------------------------------------------------------------
-// 表格列
+// 工具栏（create → 页头 primary；其余 → 页头 default）
+// ---------------------------------------------------------------
+
+const primaryButtons = computed(() =>
+  (props.config.toolbar ?? []).filter((b) => b.key === 'create'),
+)
+const secondaryButtons = computed(() =>
+  (props.config.toolbar ?? []).filter((b) => b.key !== 'create'),
+)
+
+// ---------------------------------------------------------------
+// 表格列（07 §7：不设 scroll.x，fixed 忽略）
 // ---------------------------------------------------------------
 
 interface TableCol extends Record<string, unknown> {
@@ -144,7 +144,6 @@ interface TableCol extends Record<string, unknown> {
   title: string
   width?: number | string
   align?: 'left' | 'center' | 'right'
-  fixed?: 'left' | 'right'
   ellipsis?: boolean
   __dl?: ColumnConfig
 }
@@ -157,7 +156,6 @@ const tableColumns = computed<TableCol[]>(() =>
       title: c.title,
       width: c.width,
       align: c.align,
-      fixed: c.fixed,
       ellipsis:
         c.ellipsis === undefined
           ? undefined
@@ -172,7 +170,6 @@ const tableColumns = computed<TableCol[]>(() =>
     }
     if (c.type === 'action') {
       col.key = '__action__'
-      col.fixed = 'right'
       col.align = 'center'
       col.width = c.width ?? ((props.config.rowActions?.length ?? 0) > 3 ? 180 : 160)
     }
@@ -260,6 +257,12 @@ function onLink(column: ColumnConfig, row: RowWithOperList): void {
 // ---------------------------------------------------------------
 
 const selectedRowKeys = ref<(string | number)[]>([])
+const selectedRows = ref<RowWithOperList[]>([])
+
+function clearSelection(): void {
+  selectedRowKeys.value = []
+  selectedRows.value = []
+}
 
 const rowSelection = computed(() => {
   if (!props.config.rowSelection) return undefined
@@ -267,6 +270,7 @@ const rowSelection = computed(() => {
     selectedRowKeys: selectedRowKeys.value,
     onChange: (keys: (string | number)[], rows: RowWithOperList[]) => {
       selectedRowKeys.value = keys
+      selectedRows.value = rows
       emit('selection-change', keys, rows)
     },
   }
@@ -282,6 +286,8 @@ defineExpose({
   refresh: list.refresh,
   search: list.search,
   reset: list.reset,
+  /** 清除表格勾选（选择条「清除」与页面批量操作后调用） */
+  clearSelection,
   /** 当前选中行 keys（rowSelection 场景） */
   selectedRowKeys,
   /** 数据循环句柄（查询/分页状态） */
@@ -291,253 +297,277 @@ defineExpose({
 
 <template>
   <div class="dl-page">
-    <!-- 查询卡片（§5.2） -->
-    <div v-if="visibleFields.length > 0" class="dl-page-card">
-      <div class="dl-query-grid">
-        <div
-          v-for="f in visibleFields"
-          :key="f.field"
-          class="dl-query-item"
-          :style="{ gridColumn: `span ${units(f)}` }"
-        >
-          <span class="dl-query-label">{{ f.label }}</span>
-          <a-input
-            v-if="!f.type || f.type === 'input'"
-            :value="strValue(f.field)"
-            :placeholder="f.placeholder ?? '请输入'"
-            allow-clear
-            @update:value="(v: string) => setQuery(f.field, v)"
-            @press-enter="list.search"
-          />
-          <a-select
-            v-else-if="f.type === 'select'"
-            :value="strValue(f.field)"
-            :options="dictOptions(f.dictKey)"
-            :placeholder="f.placeholder ?? '请选择'"
-            allow-clear
-            show-search
-            option-filter-prop="label"
-            @update:value="(v: unknown) => setQuery(f.field, v === undefined || v === null ? '' : String(v))"
-          />
-          <a-range-picker
-            v-else-if="f.type === 'dateRange'"
-            :value="rangeValue(f.field)"
-            value-format="YYYY-MM-DD"
-            :placeholder="['开始日期', '结束日期']"
-            @update:value="(v: unknown) => setQuery(f.field, v)"
-          />
-          <a-date-picker
-            v-else-if="f.type === 'date'"
-            :value="strValue(f.field)"
-            value-format="YYYY-MM-DD"
-            :placeholder="f.placeholder ?? '请选择日期'"
-            @update:value="(v: unknown) => setQuery(f.field, v === undefined || v === null ? '' : String(v))"
-          />
-          <a-input-number
-            v-else-if="f.type === 'number'"
-            :value="numValue(f.field)"
-            :placeholder="f.placeholder ?? '请输入'"
-            @update:value="(v: unknown) => setQuery(f.field, v === undefined ? undefined : Number(v))"
-          />
-        </div>
-        <div class="dl-query-item dl-query-actions">
-          <a-button type="primary" @click="list.search">
-            <SearchOutlined />
-            查询
-          </a-button>
-          <a-button @click="list.reset">
+    <!-- 页头行：标题 + 页面级控件 + 内联筛选 + 操作（07 §3.2） -->
+    <div class="dl-page-header">
+      <h1 v-if="config.title" class="dl-page-title">{{ config.title }}</h1>
+      <slot name="header-extra" :list="list" />
+
+      <div class="dl-page-header-right">
+        <template v-if="queryFields.length > 0">
+          <template v-for="f in queryFields" :key="f.field">
+            <a-select
+              v-if="f.type === 'select'"
+              class="dl-filter dl-filter--select"
+              size="small"
+              :value="strValue(f.field) || undefined"
+              :options="dictOptions(f.dictKey)"
+              :placeholder="f.label"
+              allow-clear
+              @update:value="(v: unknown) => setAndSearch(f.field, v === undefined || v === null ? '' : String(v))"
+            />
+            <a-input
+              v-else-if="!f.type || f.type === 'input'"
+              class="dl-filter dl-filter--input"
+              size="small"
+              :value="strValue(f.field)"
+              :placeholder="f.placeholder ?? f.label"
+              allow-clear
+              @update:value="(v: string) => onInput(f.field, v)"
+              @press-enter="list.search"
+            />
+            <a-range-picker
+              v-else-if="f.type === 'dateRange'"
+              class="dl-filter dl-filter--range"
+              size="small"
+              :value="rangeValue(f.field)"
+              value-format="YYYY-MM-DD"
+              :placeholder="['开始日期', '结束日期']"
+              @update:value="(v: unknown) => setAndSearch(f.field, v)"
+            />
+            <a-date-picker
+              v-else-if="f.type === 'date'"
+              class="dl-filter dl-filter--date"
+              size="small"
+              :value="strValue(f.field)"
+              value-format="YYYY-MM-DD"
+              :placeholder="f.label"
+              @update:value="(v: unknown) => setAndSearch(f.field, v === undefined || v === null ? '' : String(v))"
+            />
+            <a-input-number
+              v-else-if="f.type === 'number'"
+              class="dl-filter dl-filter--number"
+              size="small"
+              :value="numValue(f.field)"
+              :placeholder="f.label"
+              @update:value="(v: unknown) => (list.query[f.field] = v === undefined ? undefined : Number(v))"
+              @press-enter="list.search"
+            />
+          </template>
+          <a-button
+            v-if="hasActiveFilter"
+            type="text"
+            size="small"
+            class="dl-filter-reset"
+            @click="resetFilters"
+          >
             <ReloadOutlined />
             重置
           </a-button>
-          <a-button v-if="collapsible" type="link" @click="expanded = !expanded">
-            {{ expanded ? '收起' : '展开' }}
-            <DownOutlined :class="{ 'dl-expand-rotate': expanded }" />
-          </a-button>
-        </div>
-      </div>
-    </div>
+        </template>
 
-    <!-- 工具栏 + 表格卡片 -->
-    <div class="dl-page-card">
-      <div class="dl-toolbar">
-        <a-space>
+        <a-radio-group
+          v-if="viewMode === 'both' && hasCardSlot"
+          v-model:value="activeView"
+          size="small"
+          option-type="button"
+          button-style="solid"
+          :options="[
+            { label: '表格', value: 'table' },
+            { label: '卡片', value: 'card' },
+          ]"
+        />
+
+        <a-space :size="8">
           <a-button
-            v-for="btn in config.toolbar ?? []"
+            v-for="btn in secondaryButtons"
             :key="btn.key"
-            :type="btn.key === 'create' ? 'primary' : 'default'"
             :danger="btn.danger"
             @click="emit('toolbar-click', btn)"
           >
             {{ btn.label }}
           </a-button>
+          <a-button
+            v-for="btn in primaryButtons"
+            :key="btn.key"
+            type="primary"
+            @click="emit('toolbar-click', btn)"
+          >
+            {{ btn.label }}
+          </a-button>
         </a-space>
-        <a-radio-group
-          v-if="viewMode === 'both' && hasCardSlot"
-          v-model:value="activeView"
-          button-style="solid"
-          size="small"
-        >
-          <a-radio-button value="table">表格</a-radio-button>
-          <a-radio-button value="card">卡片</a-radio-button>
-        </a-radio-group>
       </div>
+    </div>
 
-      <!-- 表格视图 -->
-      <a-table
-        v-if="activeView === 'table'"
-        class="dl-table"
-        :columns="tableColumns"
-        :data-source="list.records.value"
-        :loading="list.loading.value"
-        :row-key="config.rowKey ?? 'id'"
-        :row-selection="rowSelection"
-        :pagination="false"
-        :scroll="{ x: 'max-content' }"
-        size="middle"
-      >
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.key === '__seq__'">
-            {{ index + 1 }}
-          </template>
-          <template v-else-if="column.key === '__action__'">
-            <a-space :size="4">
-              <a-button
-                v-for="btn in splitOpers(record).inline"
-                :key="btn.key"
-                type="link"
-                size="small"
-                :danger="btn.danger"
-                @click="onOper(btn, record)"
-              >
-                {{ btn.label }}
-              </a-button>
-              <a-dropdown v-if="splitOpers(record).more.length > 0">
-                <a-button type="link" size="small">
-                  更多
-                  <DownOutlined />
-                </a-button>
-                <template #overlay>
-                  <a-menu>
-                    <a-menu-item
-                      v-for="btn in splitOpers(record).more"
-                      :key="btn.key"
-                      :danger="btn.danger"
-                      @click="onOper(btn, record)"
-                    >
-                      {{ btn.label }}
-                    </a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </a-space>
-          </template>
-          <template v-else-if="metaOf(String(column.key))?.type === 'link'">
+    <!-- 选择条（勾选后出现；批量操作经 #selection-actions） -->
+    <div
+      v-if="rowSelection && selectedRowKeys.length > 0"
+      class="dl-selection-bar"
+    >
+      <span class="dl-selection-count">已选 {{ selectedRowKeys.length }} 项</span>
+      <slot
+        name="selection-actions"
+        :rows="selectedRows"
+        :keys="selectedRowKeys"
+        :clear="clearSelection"
+      />
+      <a-button type="text" size="small" @click="clearSelection">清除</a-button>
+    </div>
+
+    <!-- 平铺表格（07 §7：无 scroll.x、表头透明、固定列分界线禁用） -->
+    <a-table
+      v-if="activeView === 'table'"
+      class="dl-table dl-table-flex"
+      :columns="tableColumns"
+      :data-source="list.records.value"
+      :loading="list.loading.value"
+      :row-key="config.rowKey ?? 'id'"
+      :row-selection="rowSelection"
+      :pagination="false"
+      size="middle"
+    >
+      <template #bodyCell="{ column, record, index }">
+        <template v-if="column.key === '__seq__'">
+          {{ index + 1 }}
+        </template>
+        <template v-else-if="column.key === '__action__'">
+          <a-space :size="4">
             <a-button
+              v-for="btn in splitOpers(record).inline"
+              :key="btn.key"
               type="link"
               size="small"
-              @click="onLink(metaOf(String(column.key))!, record)"
+              :danger="btn.danger"
+              @click="onOper(btn, record)"
             >
-              {{ cellText(metaOf(String(column.key))!, record) }}
+              {{ btn.label }}
             </a-button>
-          </template>
-          <template v-else-if="metaOf(String(column.key))?.type === 'dict'">
-            <a-tag
-              v-if="metaOf(String(column.key))?.colorTag"
-              :color="cellTagColor(metaOf(String(column.key))!, record)"
-            >
-              {{ cellText(metaOf(String(column.key))!, record) }}
-            </a-tag>
-            <span v-else>{{ cellText(metaOf(String(column.key))!, record) }}</span>
-          </template>
-          <template v-else-if="metaOf(String(column.key))?.type === 'amount'">
-            <span class="dl-amount">
-              {{ cellText(metaOf(String(column.key))!, record) }}
-            </span>
-          </template>
-          <template v-else-if="metaOf(String(column.key))?.type === 'unitPrice'">
-            <span class="dl-unit-price">
-              {{ cellText(metaOf(String(column.key))!, record) }}
-            </span>
-          </template>
-          <template v-else>
-            {{ cellText(metaOf(String(column.key)) ?? { dataIndex: String(column.key), title: '' }, record) }}
-          </template>
+            <a-dropdown v-if="splitOpers(record).more.length > 0">
+              <a-button type="link" size="small">
+                更多
+                <DownOutlined />
+              </a-button>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item
+                    v-for="btn in splitOpers(record).more"
+                    :key="btn.key"
+                    :danger="btn.danger"
+                    @click="onOper(btn, record)"
+                  >
+                    {{ btn.label }}
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
         </template>
-      </a-table>
-
-      <!-- 卡片视图（内容经 #card 插槽，F2-F4 提供） -->
-      <div v-else class="dl-card-grid">
-        <template v-if="list.records.value.length > 0">
-          <div
-            v-for="(row, i) in list.records.value"
-            :key="String(row[config.rowKey ?? 'id'] ?? i)"
+        <template v-else-if="metaOf(String(column.key))?.type === 'link'">
+          <a-button
+            type="link"
+            size="small"
+            @click="onLink(metaOf(String(column.key))!, record)"
           >
-            <slot name="card" :row="row" :index="i" />
-          </div>
+            {{ cellText(metaOf(String(column.key))!, record) }}
+          </a-button>
         </template>
-        <a-empty v-else description="暂无数据" />
-      </div>
+        <template v-else-if="metaOf(String(column.key))?.type === 'dict'">
+          <a-tag
+            v-if="metaOf(String(column.key))?.colorTag"
+            :color="cellTagColor(metaOf(String(column.key))!, record)"
+          >
+            {{ cellText(metaOf(String(column.key))!, record) }}
+          </a-tag>
+          <span v-else>{{ cellText(metaOf(String(column.key))!, record) }}</span>
+        </template>
+        <template v-else-if="metaOf(String(column.key))?.type === 'amount'">
+          <span class="dl-amount">
+            {{ cellText(metaOf(String(column.key))!, record) }}
+          </span>
+        </template>
+        <template v-else-if="metaOf(String(column.key))?.type === 'unitPrice'">
+          <span class="dl-unit-price">
+            {{ cellText(metaOf(String(column.key))!, record) }}
+          </span>
+        </template>
+        <template v-else>
+          {{ cellText(metaOf(String(column.key)) ?? { dataIndex: String(column.key), title: '' }, record) }}
+        </template>
+      </template>
+      <template #emptyText>
+        <slot name="empty">
+          <a-empty description="暂无数据" />
+        </slot>
+      </template>
+    </a-table>
 
-      <div class="dl-pagination">
-        <a-pagination
-          :current="list.pageNum.value"
-          :page-size="list.pageSize.value"
-          :total="list.total.value"
-          show-size-changer
-          :show-total="(t: number) => `共 ${t} 条`"
-          @change="list.handlePageChange"
-        />
-      </div>
+    <!-- 卡片视图：描边 tile（07 §3.5，内容经 #card 插槽） -->
+    <div v-else class="dl-card-grid">
+      <template v-if="list.records.value.length > 0">
+        <div
+          v-for="(row, i) in list.records.value"
+          :key="String(row[config.rowKey ?? 'id'] ?? i)"
+          class="dl-tile"
+        >
+          <slot name="card" :row="row" :index="i" />
+        </div>
+      </template>
+      <a-empty v-else description="暂无数据" />
+    </div>
+
+    <!-- 页脚行：共 N 条 + 分页 -->
+    <div class="dl-page-footer">
+      <span class="dl-footer-total">共 {{ list.total.value }} 条</span>
+      <a-pagination
+        size="small"
+        :current="list.pageNum.value"
+        :page-size="list.pageSize.value"
+        :total="list.total.value"
+        show-size-changer
+        @change="list.handlePageChange"
+      />
     </div>
   </div>
 </template>
 
 <style scoped>
-.dl-query-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px 16px;
-  align-items: center;
+.dl-filter--select {
+  width: 140px;
 }
 
-.dl-query-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+.dl-filter--input {
+  width: 220px;
 }
 
-.dl-query-label {
-  flex: none;
+.dl-filter--range {
+  width: 260px;
+}
+
+.dl-filter--date {
+  width: 140px;
+}
+
+.dl-filter--number {
+  width: 120px;
+}
+
+.dl-filter-reset {
   color: var(--dl-text-secondary);
-  white-space: nowrap;
 }
 
-.dl-query-actions {
-  justify-content: flex-end;
-}
-
-.dl-expand-rotate {
-  transform: rotate(180deg);
-}
-
-.dl-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  min-height: 32px;
+/* 表格坐表面：占满页头/页脚之间的剩余高度（短内容时页脚仍贴内容尾） */
+.dl-table-flex {
+  flex: 1 0 auto;
 }
 
 .dl-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
+  padding: 16px 24px;
 }
 
-.dl-pagination {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 12px;
+.dl-card-grid > :deep(.ant-empty) {
+  grid-column: 1 / -1;
+  padding: 24px 0;
 }
 </style>

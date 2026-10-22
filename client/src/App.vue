@@ -89,7 +89,7 @@ function onNavClick(e: { key: string | number }): void {
       </a-layout-sider>
       <a-layout>
         <a-layout-header class="dl-header">
-          <span class="dl-header-title">{{ String(route.meta.title ?? '') }}</span>
+          <!-- 07 v2.0：页面标题移入各页表面页头行，顶栏只留账号与设置入口 -->
           <span class="dl-header-right">
             <span v-if="auth.nickname" class="dl-header-user">{{ auth.nickname }}</span>
             <!-- settings.md §1：主窗口右上角设置入口 -->
@@ -132,17 +132,15 @@ function onNavClick(e: { key: string | number }): void {
 }
 
 .dl-header {
-  background: var(--dl-header-bg);
+  /* 07 v2.0：顶栏属内容表面——表面底色 + 底部分隔线，高度 48 */
+  height: 48px;
+  line-height: 48px;
+  background: var(--dl-card-bg);
   padding: 0 16px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  box-shadow: var(--dl-header-shadow);
-}
-
-.dl-header-title {
-  font-weight: 600;
-  color: var(--dl-title-color);
+  justify-content: flex-end;
+  border-bottom: 1px solid var(--dl-border-light);
 }
 
 .dl-header-right {
@@ -157,6 +155,8 @@ function onNavClick(e: { key: string | number }): void {
 }
 
 .dl-content {
+  /* 07 v2.0：内容区即单表面（#1f1f1f），页面贴壳满幅 */
+  background: var(--dl-card-bg);
   overflow-y: auto;
 }
 </style>

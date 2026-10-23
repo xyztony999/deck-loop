@@ -93,3 +93,15 @@ export class RouteDecision {
     return new RouteDecision(channelCode, modelCode, source);
   }
 }
+
+/**
+ * 网关运行时刷新端口（渠道管理端，channel-admin-2026-10-23 §3）：
+ * 管理保存/启停落库后由 platform 侧 GatewayRuntimeStore 实现 reload()——
+ * 重建内存快照并通知适配器重建（热生效，无需重启进程）。
+ */
+export interface GatewayRuntimePort {
+  reload(): Promise<void>;
+}
+
+/** DI token（platform 侧 provide/useExisting GatewayRuntimeStore） */
+export const GATEWAY_RUNTIME_PORT = 'GATEWAY_RUNTIME_PORT';

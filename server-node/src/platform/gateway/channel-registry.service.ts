@@ -1,13 +1,13 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { ChannelModel, ChannelModelItem, ChannelRegistryPort } from '../../channel/ports';
-import { GATEWAY_RUNTIME_CONFIG, type GatewayRuntimeConfig } from './gateway-config';
+import { GatewayRuntimeStore } from './gateway-runtime-store';
 
 /**
  * 渠道注册查询服务（gw-channel-registry 对外 OHS，api-platform §5.1；
  * 实现 channel 域定义的倒置接口 src/channel/ports.ts ChannelRegistryPort——
  * manifest §10 签名 `listEnabled(): ChannelModel[]`）。
  *
- * - 配置来源：env GATEWAY_CHANNELS（进程启动快照，进程内读缓存）；
+ * - 配置来源：GatewayRuntimeStore（dl_channel 快照，管理端保存/启停后热刷新）；
  * - 安全红线 ADR-010 / INV-26：本服务**不触碰密钥字段**——对外仅产出无密钥的
  *   ChannelModel（channel/ports.ts 定义，不含任何密钥字段）；
  *   密钥读取唯一入口 ProviderCredentialsResolver（gateway 包内）；
@@ -16,14 +16,13 @@ import { GATEWAY_RUNTIME_CONFIG, type GatewayRuntimeConfig } from './gateway-con
  */
 @Injectable()
 export class ChannelRegistryService implements ChannelRegistryPort {
-  constructor(
-    @Inject(GATEWAY_RUNTIME_CONFIG)
-    private readonly config: GatewayRuntimeConfig,
-  ) {}
+  constructor(private readonly store: GatewayRuntimeStore) {}
 
   /** 可用渠道清单（enabled 渠道 + 其 enabled 模型，priority 降序；空数组=平台无可用渠道） */
   listEnabled(): ChannelModel[] {
-    return this.config.channels
+    return this.store
+      .get()
+      .channels
       .filter((channel) => channel.enabled)
       .map(
         (channel): ChannelModel => ({

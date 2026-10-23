@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { EventEmitter2 } from 'eventemitter2';
 import { ModuleRef } from '@nestjs/core';
 import { TaskStatus, TaskType } from '../../common/enums';
@@ -8,10 +8,10 @@ import { GenerationTaskCoreRepository } from '../generation-task-core.repository
 import { UsageRecordRepository } from '../usage-record.repository';
 import { GW_TASK_ADVANCED, GW_USAGE_RECORDED, type GwTaskAdvancedPayload, type GwUsageRecordedPayload } from '../platform.events';
 import { GW_PROVIDER_FAILED } from '../platform.errors';
-import { GATEWAY_RUNTIME_CONFIG, type GatewayRuntimeConfig } from './gateway-config';
 import { type AiProviderAdapter, type ProviderCallContext, type ProviderCallResult, ProviderCallError } from './ai-provider-adapter';
 import { GATEWAY_TASK_CALLBACK, type GatewayTaskCallback, type GatewayTaskUsage } from './gateway-task-callback';
 import type { GatewayTaskRequest } from './gateway-task-request';
+import { GatewayRuntimeStore } from './gateway-runtime-store';
 import { ProviderAdapterRegistry } from './provider-adapter.registry';
 import { ProviderCredentialsResolver } from './provider-credentials.resolver';
 
@@ -42,8 +42,7 @@ export class GatewayTaskService implements OnModuleDestroy {
   private inFlight = 0;
 
   constructor(
-    @Inject(GATEWAY_RUNTIME_CONFIG)
-    private readonly config: GatewayRuntimeConfig,
+    private readonly store: GatewayRuntimeStore,
     private readonly taskRepository: GenerationTaskCoreRepository,
     private readonly usageRepository: UsageRecordRepository,
     private readonly credentialsResolver: ProviderCredentialsResolver,
@@ -72,10 +71,10 @@ export class GatewayTaskService implements OnModuleDestroy {
   private dispatch(): void {
     for (let i = 0; i < this.waiting.length; ) {
       const task = this.waiting[i];
-      if (this.inFlight >= this.config.globalDispatchConcurrency) {
+      if (this.inFlight >= this.store.get().globalDispatchConcurrency) {
         break;
       }
-      if (this.runningOf(task.userId) < this.config.maxConcurrentPerUser) {
+      if (this.runningOf(task.userId) < this.store.get().maxConcurrentPerUser) {
         this.waiting.splice(i, 1);
         this.runningByUser.set(task.userId, this.runningOf(task.userId) + 1);
         this.inFlight += 1;
@@ -105,7 +104,7 @@ export class GatewayTaskService implements OnModuleDestroy {
       const context: ProviderCallContext = {
         task,
         apiKey: this.credentialsResolver.resolveApiKey(task.channelCode),
-        timeoutMillis: this.config.providerTimeoutMillis,
+        timeoutMillis: this.store.get().providerTimeoutMillis,
       };
 
       const result = await this.dispatchByType(adapter, context, task);

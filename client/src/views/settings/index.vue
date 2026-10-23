@@ -13,6 +13,7 @@
 import GeneralTab from './components/GeneralTab.vue'
 import PreferenceTab from './components/PreferenceTab.vue'
 import UsageTab from './components/UsageTab.vue'
+import ChannelAdminTab from './components/ChannelAdminTab.vue'
 import AccountTab from './components/AccountTab.vue'
 </script>
 
@@ -28,6 +29,9 @@ import AccountTab from './components/AccountTab.vue'
       </a-tab-pane>
       <a-tab-pane key="usage" tab="用量统计">
         <UsageTab />
+      </a-tab-pane>
+      <a-tab-pane key="channels" tab="模型渠道">
+        <ChannelAdminTab />
       </a-tab-pane>
       <a-tab-pane key="account" tab="账户">
         <AccountTab />

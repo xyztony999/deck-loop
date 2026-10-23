@@ -139,36 +139,47 @@ function parseIntEnv(name: string, fallback: number, min: number, max: number): 
   return Number.isInteger(parsed) && parsed >= min && parsed <= max ? parsed : fallback;
 }
 
-/** 读取并缓存网关运行时配置（env 直读；解析失败回落内置 MOCK 渠道） */
-export function loadGatewayRuntimeConfig(): GatewayRuntimeConfig {
-  let channels: GatewayChannelDefinition[] | null = null;
+/**
+ * 解析 env GATEWAY_CHANNELS（渠道管理端首次导入复用）。
+ * 未配置/解析失败/空数组 → []（不回落 MOCK：调用方自行决定兜底）。
+ */
+export function parseEnvChannelDefinitions(): GatewayChannelDefinition[] {
   const raw = process.env.GATEWAY_CHANNELS;
-  if (typeof raw === 'string' && raw.trim().length > 0) {
-    try {
-      const parsed: unknown = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        channels = parsed
-          .map(parseChannel)
-          .filter((channel): channel is GatewayChannelDefinition => channel !== null);
-        if (channels.length === 0) {
-          logger.warn('GATEWAY_CHANNELS 未解析出任何有效渠道，回落内置 MOCK 渠道');
-          channels = null;
-        }
-      } else {
-        logger.warn('GATEWAY_CHANNELS 须为 JSON 数组，回落内置 MOCK 渠道');
-      }
-    } catch {
-      // 不打 raw 内容（可能含密钥）
-      logger.warn('GATEWAY_CHANNELS JSON 解析失败，回落内置 MOCK 渠道');
-    }
+  if (typeof raw !== 'string' || raw.trim().length === 0) {
+    return [];
   }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      logger.warn('GATEWAY_CHANNELS 须为 JSON 数组（导入跳过）');
+      return [];
+    }
+    const channels = parsed
+      .map(parseChannel)
+      .filter((channel): channel is GatewayChannelDefinition => channel !== null);
+    if (channels.length === 0) {
+      logger.warn('GATEWAY_CHANNELS 未解析出任何有效渠道（导入跳过）');
+    }
+    return channels;
+  } catch {
+    // 不打 raw 内容（可能含密钥）
+    logger.warn('GATEWAY_CHANNELS JSON 解析失败（导入跳过）');
+    return [];
+  }
+}
+
+/** 内置 MOCK 渠道定义（管理端 seed 复用；合成 key 非真实密钥） */
+export function buildBuiltinMockChannel(): GatewayChannelDefinition {
+  return buildDefaultChannels()[0];
+}
+
+/** 运行时旋钮（并发/超时，env 直读；快照重建时随取） */
+export function loadRuntimeKnobs() {
   return {
-    channels: channels ?? buildDefaultChannels(),
     maxConcurrentPerUser: parseIntEnv('GATEWAY_MAX_CONCURRENT_PER_USER', 3, 1, 100),
     providerTimeoutMillis: parseIntEnv('GATEWAY_PROVIDER_TIMEOUT_MILLIS', 60_000, 1_000, 600_000),
     globalDispatchConcurrency: parseIntEnv('GATEWAY_DISPATCH_CONCURRENCY', 8, 1, 256),
   };
 }
 
-/** DI token（PlatformModule provide；消费方仅限 gateway 包内服务） */
-export const GATEWAY_RUNTIME_CONFIG = 'GATEWAY_RUNTIME_CONFIG';
+/** DI token（已废弃：渠道管理端改造后由 GatewayRuntimeStore 取代，保留空导出防外部引用断裂） */

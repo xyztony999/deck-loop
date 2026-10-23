@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AUTH_TOKEN_VERIFIER } from '../common/auth-token-verifier';
-import { CHANNEL_REGISTRY_PORT } from '../channel/ports';
+import { CHANNEL_REGISTRY_PORT, GATEWAY_RUNTIME_PORT } from '../channel/ports';
 import { Account, AccountSchema } from './schemas/account.schema';
 import { UsageRecord, UsageRecordSchema } from './schemas/usage-record.schema';
 import { GenerationTaskCore, GenerationTaskCoreSchema } from './schemas/generation-task-core.schema';
@@ -16,7 +16,8 @@ import { SyncController } from './sync.controller';
 import { SyncPullService } from './sync/sync-pull.service';
 import { SYNC_CHANGE_SCANNER } from './sync/sync-change-scanner';
 import { GenerationTaskSyncScanner } from './sync/generation-task-sync.scanner';
-import { GATEWAY_RUNTIME_CONFIG, loadGatewayRuntimeConfig } from './gateway/gateway-config';
+import { ChannelConfigDoc, ChannelConfigSchema } from './gateway/channel-config.doc';
+import { GatewayRuntimeStore } from './gateway/gateway-runtime-store';
 import { ChannelRegistryService } from './gateway/channel-registry.service';
 import { ProviderCredentialsResolver } from './gateway/provider-credentials.resolver';
 import { MockAiProviderAdapter } from './gateway/mock-ai-provider.adapter';
@@ -55,6 +56,8 @@ import { GatewayStreamController } from './gateway-stream.controller';
       // 同表共治（D1）：模型名 GenerationTaskCore ≠ generation 域全量模型，
       // 同 collection dl_generation_task、不声明业务索引（索引归 generation 域）
       { name: GenerationTaskCore.name, schema: GenerationTaskCoreSchema },
+      // dl_channel 只读投影（渠道管理端：网关快照加载；权威 schema 归 channel 域）
+      { name: ChannelConfigDoc.name, schema: ChannelConfigSchema },
     ]),
   ],
   controllers: [AccountController, SyncController, GatewayStreamController],
@@ -71,8 +74,9 @@ import { GatewayStreamController } from './gateway-stream.controller';
     // 多端同步（P-02）：TASK 聚合内置扫描器（D1）+ 聚合发现
     { provide: SYNC_CHANGE_SCANNER, useClass: GenerationTaskSyncScanner },
     SyncPullService,
-    // AI 网关（P-01）：env 渠道注册（进程启动快照）→ 清单/密钥/适配器/调度/SSE
-    { provide: GATEWAY_RUNTIME_CONFIG, useFactory: loadGatewayRuntimeConfig },
+    // AI 网关（P-01）：dl_channel 快照存储（管理端热生效）→ 清单/密钥/适配器/调度/SSE
+    GatewayRuntimeStore,
+    { provide: GATEWAY_RUNTIME_PORT, useExisting: GatewayRuntimeStore },
     ChannelRegistryService,
     { provide: CHANNEL_REGISTRY_PORT, useExisting: ChannelRegistryService },
     ProviderCredentialsResolver,
@@ -84,8 +88,9 @@ import { GatewayStreamController } from './gateway-stream.controller';
   exports: [
     // 全局 AuthGuard 消费（common 依赖倒置 token）
     { provide: AUTH_TOKEN_VERIFIER, useExisting: SessionTokenService },
-    // channel 域 @Optional @Inject 消费（渠道清单防腐端口）
+    // channel 域 @Optional @Inject 消费（渠道清单防腐端口 + 运行时刷新端口）
     { provide: CHANNEL_REGISTRY_PORT, useExisting: ChannelRegistryService },
+    { provide: GATEWAY_RUNTIME_PORT, useExisting: GatewayRuntimeStore },
     // 跨域直调（generation/adjustment execute(task)）
     ChannelRegistryService,
     GatewayTaskService,

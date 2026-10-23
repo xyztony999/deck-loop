@@ -1,5 +1,8 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -7,8 +10,10 @@ import {
   IsString,
   Matches,
   MaxLength,
+  Max,
   Min,
   Validate,
+  ValidateNested,
   ValidatorConstraint,
   type ValidationArguments,
   type ValidatorConstraintInterface,
@@ -338,4 +343,188 @@ export class ModelOptionVO {
 /** 档位 AO 的任务类型值域辅助（键校验/档位遍历共用） */
 export function isTaskTypeCode(code: string): code is TaskTypeCode {
   return Object.values(TaskType).includes(code as TaskTypeCode);
+}
+
+/* ------------------------------------------------------------------ */
+/* 渠道管理端（channel-admin-2026-10-23 §4；增量契约）                  */
+/* ------------------------------------------------------------------ */
+
+/** 能力标签值域（网关调度路由依据；与枚举池 capabilityTag 对齐） */
+export const CHANNEL_CAPABILITY_TAGS: ReadonlyArray<string> = [
+  'OUTLINE',
+  'FULL_GENERATE',
+  'FULL_ADJUST',
+  'TARGETED_ADJUST',
+];
+
+/** 管理端·渠道模型行 AO */
+export class ChannelAdminModelAO {
+  @IsNotEmpty({ message: '模型编码不能为空' })
+  @Matches(/^[A-Za-z][A-Za-z0-9._-]{0,63}$/, { message: '模型编码格式无效' })
+  modelCode!: string;
+
+  @IsNotEmpty({ message: '模型名称不能为空' })
+  @MaxLength(100)
+  modelName!: string;
+
+  @IsArray()
+  @IsIn(CHANNEL_CAPABILITY_TAGS, { each: true, message: '能力标签含未定义值' })
+  capabilityTags!: string[];
+
+  @IsBoolean()
+  enabled!: boolean;
+}
+
+/** 管理端·渠道保存 AO（creating=true 新建语义；apiKey 空=保留已存密钥） */
+export class ChannelAdminSaveAO {
+  @IsNotEmpty({ message: '渠道编码不能为空' })
+  @Matches(/^[A-Z][A-Z0-9_]{0,47}$/, { message: '渠道编码须为大写字母开头的 A-Z0-9_' })
+  channelCode!: string;
+
+  /** 新建语义标记：true=必须不存在（否则 CODE_EXISTS）；缺省=编辑语义（必须已存在） */
+  @IsOptional()
+  @IsBoolean()
+  creating?: boolean;
+
+  @IsNotEmpty({ message: '渠道名称不能为空' })
+  @MaxLength(100)
+  channelName!: string;
+
+  @IsNotEmpty({ message: 'baseUrl 不能为空' })
+  @MaxLength(500)
+  apiBaseUrl!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  apiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  apiKeyEnv?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(-9999)
+  @Max(9999)
+  priority?: number;
+
+  @IsBoolean()
+  enabled!: boolean;
+
+  @IsArray()
+  @ArrayMinSize(1, { message: '至少配置一个模型' })
+  @ValidateNested({ each: true })
+  @Type(() => ChannelAdminModelAO)
+  models!: ChannelAdminModelAO[];
+}
+
+/** 管理端·渠道编码 AO（detail/启停共用） */
+export class ChannelAdminCodeAO {
+  @IsNotEmpty({ message: '渠道编码不能为空' })
+  @MaxLength(64)
+  channelCode!: string;
+}
+
+/** 管理端·启停 AO */
+export class ChannelAdminSetEnabledAO {
+  @IsNotEmpty({ message: '渠道编码不能为空' })
+  @MaxLength(64)
+  channelCode!: string;
+
+  @IsBoolean()
+  enabled!: boolean;
+}
+
+/** 管理端·连通性测试 AO：channelCode 走已存渠道；否则走临时 baseUrl+apiKey+modelCode */
+export class ChannelAdminTestAO {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  channelCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  apiBaseUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  apiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  modelCode?: string;
+}
+
+/** 管理端·模型行 VO */
+export class ChannelAdminModelVO {
+  modelCode!: string;
+  modelName!: string;
+  capabilityTags!: string[];
+  enabled!: boolean;
+}
+
+/** 管理端·渠道项 VO（密钥只回掩码，绝不回明文/密文） */
+export class ChannelAdminItemVO {
+  channelCode!: string;
+  channelName!: string;
+  apiBaseUrl!: string;
+  priority!: number;
+  enabled!: boolean;
+  builtin!: boolean;
+  source!: string;
+  /** 掩码（●●●●尾4）或 env 引用名展示；空=未配置 */
+  apiKeyMasked!: string;
+  models!: ChannelAdminModelVO[];
+
+  constructor(
+    channelCode: string,
+    channelName: string,
+    apiBaseUrl: string,
+    priority: number,
+    enabled: boolean,
+    builtin: boolean,
+    source: string,
+    apiKeyMasked: string,
+    models: ChannelAdminModelVO[],
+  ) {
+    this.channelCode = channelCode;
+    this.channelName = channelName;
+    this.apiBaseUrl = apiBaseUrl;
+    this.priority = priority;
+    this.enabled = enabled;
+    this.builtin = builtin;
+    this.source = source;
+    this.apiKeyMasked = apiKeyMasked;
+    this.models = models;
+  }
+}
+
+/** 管理端·清单 VO */
+export class ChannelAdminListVO {
+  records!: ChannelAdminItemVO[];
+  total!: number;
+
+  constructor(records: ChannelAdminItemVO[], total: number) {
+    this.records = records;
+    this.total = total;
+  }
+}
+
+/** 管理端·连通性测试 VO */
+export class ChannelAdminTestVO {
+  ok!: boolean;
+  latencyMs?: number;
+  errorMsg?: string;
+
+  constructor(ok: boolean, latencyMs?: number, errorMsg?: string) {
+    this.ok = ok;
+    this.latencyMs = latencyMs;
+    this.errorMsg = errorMsg;
+  }
 }

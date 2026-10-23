@@ -1,11 +1,11 @@
 /**
  * channel 域 action（来源：PageSpec settings.md §2 Action 定义 +
- * api-channel.md §4.4 接口清单）。
+ * api-channel.md §4.4 接口清单 + 渠道管理端 channel-admin-2026-10-23 §4）。
  *
- * - 仅注册 channel 域 4 个接口；PageSpec §2 的 account_profile / sync_pull /
- *   logout 为跨域 auth 接口，auth.ts 已注册（auth.profile / auth.syncPull /
- *   auth.logout），registerModule 对重复 key 直接抛错，故此处只导出复用键
- *   常量、不重复注册（与 deck.ts 的跨域键名隔离先例一致）。
+ * - 偏好/选择池/用量 4 接口 + 管理端 5 接口（admin/*）；PageSpec §2 的
+ *   account_profile / sync_pull / logout 为跨域 auth 接口，auth.ts 已注册
+ *   （auth.profile / auth.syncPull / auth.logout），registerModule 对重复 key
+ *   直接抛错，故此处只导出复用键常量、不重复注册。
  * - channel 域无 dict 端点：api-channel.md §3.4「无独立业务枚举（档位键=
  *   TaskType）」，故 dict.ts 不注册 channel.dictBatch；档位分组标签走
  *   gen 域字典 task.TaskType（settings.md §3）。
@@ -32,6 +32,32 @@ export const channelModule = defineModule('channel', {
     method: 'POST',
     path: '/channel/usage/summary',
     type: 'list',
+  },
+  // —— 渠道管理端（channel-admin-2026-10-23 §4）——
+  adminList: {
+    method: 'POST',
+    path: '/channel/admin/list',
+    type: 'list',
+  },
+  adminDetail: {
+    method: 'POST',
+    path: '/channel/admin/detail',
+    type: 'detail',
+  },
+  adminSave: {
+    method: 'POST',
+    path: '/channel/admin/save',
+    type: 'save',
+  },
+  adminSetEnabled: {
+    method: 'POST',
+    path: '/channel/admin/set-enabled',
+    type: 'save',
+  },
+  adminTest: {
+    method: 'POST',
+    path: '/channel/admin/test',
+    type: 'save',
   },
 })
 

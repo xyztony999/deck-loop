@@ -366,16 +366,13 @@ defineExpose({
             </div>
           </a-form>
 
-          <!-- detail 小节（单列定义列表，标签定宽——同 DlDetailPage 排版） -->
-          <a-descriptions v-else-if="card.type === 'detail'" :column="1" size="small" class="dl-desc">
-            <a-descriptions-item
-              v-for="f in card.fields ?? []"
-              :key="f.field"
-              :label="f.label"
-            >
-              {{ detailText(f.field, f.type) }}
-            </a-descriptions-item>
-          </a-descriptions>
+          <!-- detail 小节：属性网格（同 DlDetailPage 排版：标签上值下 2 列） -->
+          <div v-else-if="card.type === 'detail'" class="dl-prop-grid">
+            <div v-for="f in card.fields ?? []" :key="f.field" class="dl-prop">
+              <div class="dl-prop-label">{{ f.label }}</div>
+              <div class="dl-prop-value">{{ detailText(f.field, f.type) }}</div>
+            </div>
+          </div>
 
           <!-- list 小节（自治数据可经 #card-{key} 插槽覆盖） -->
           <slot v-else-if="card.type === 'list'" :name="`card-${card.key}`" :card="card" :form-data="formData">
@@ -530,23 +527,26 @@ defineExpose({
   width: 100%;
 }
 
-/* 定义列表排版（07 v2.0 §3.4）：标签定宽次要色、单列基线一致 */
-.dl-desc :deep(.ant-descriptions-item-label) {
-  width: 112px;
-  min-width: 112px;
+/* 属性网格（07 v2.0 §3.4，与 DlDetailPage 同语言） */
+.dl-prop-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 32px;
+}
+
+.dl-prop {
+  min-width: 0;
+}
+
+.dl-prop-label {
+  margin-bottom: 4px;
+  font-size: 12px;
   color: var(--dl-text-secondary);
-  font-size: 13px;
-  white-space: nowrap;
-  vertical-align: top;
-  padding-top: 1px;
 }
 
-.dl-desc :deep(.ant-descriptions-item-content) {
-  vertical-align: top;
+.dl-prop-value {
   font-size: 14px;
-}
-
-.dl-desc :deep(.ant-descriptions-item) {
-  padding-bottom: 12px;
+  color: var(--dl-title-color);
+  overflow-wrap: anywhere;
 }
 </style>

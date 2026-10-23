@@ -77,49 +77,54 @@ const showAnchor = computed(() => blocks.value.length >= 3)
 
 <template>
   <div class="dl-page">
-    <!-- 粘顶页头行 + 动作槽 + 关闭按钮（D-01；07 v2.0 页头行） -->
+    <!-- 粘顶页头行 + 动作槽 + 关闭按钮（D-01；关闭与动作按钮同容器对齐） -->
     <div class="dl-page-header dl-sticky">
       <h1 class="dl-page-title">{{ config.title }}</h1>
       <div class="dl-page-header-right">
-        <slot name="header-actions" />
-        <a-button @click="emit('close')">关闭</a-button>
+        <a-space :size="8" wrap>
+          <slot name="header-actions" />
+          <a-button @click="emit('close')">关闭</a-button>
+        </a-space>
       </div>
     </div>
 
-    <a-skeleton :loading="loading" active :paragraph="{ rows: 6 }" class="dl-detail-body">
-      <div
-        v-for="block in blocks"
-        :id="`dl-detail-${block.key}`"
-        :key="block.key"
-        class="dl-section"
-      >
-        <h3 class="dl-section-title">{{ block.title }}</h3>
-        <a-descriptions :column="1" size="small" class="dl-desc">
-          <a-descriptions-item
-            v-for="f in block.fields"
-            :key="f.field"
-            :label="f.label"
-            :span="1"
-          >
-            <!-- 字典 Tag（§5.4） -->
-            <template v-if="f.type === 'dict' && !isEmpty(f)">
-              <a-tag v-if="tagColor(f)" :color="tagColor(f)">{{ text(f) }}</a-tag>
-              <span v-else>{{ text(f) }}</span>
-            </template>
-            <!-- 金额（§5.3） -->
-            <span v-else-if="f.type === 'amount'" class="dl-amount">{{ text(f) }}</span>
-            <span v-else-if="f.type === 'unitPrice'" class="dl-unit-price">{{ text(f) }}</span>
-            <template v-else>
-              <slot
-                :name="`field-${f.field}`"
-                :field="f"
-                :data="data"
-              >
-                <span :class="{ 'dl-empty-value': isEmpty(f) }">{{ text(f) }}</span>
-              </slot>
-            </template>
-          </a-descriptions-item>
-        </a-descriptions>
+    <!-- 注意：a-skeleton 非加载态直接渲染插槽内容（无包装元素），
+         居中容器必须自建在插槽内而非挂在 a-skeleton 上 -->
+    <a-skeleton :loading="loading" active :paragraph="{ rows: 6 }">
+      <div class="dl-detail-body">
+        <div
+          v-for="block in blocks"
+          :id="`dl-detail-${block.key}`"
+          :key="block.key"
+          class="dl-section"
+        >
+          <h3 class="dl-section-title">{{ block.title }}</h3>
+          <!-- 属性网格（07 v2.0 §3.4：标签上值下 2 列，无冒号通栏行） -->
+          <div class="dl-prop-grid">
+            <div v-for="f in block.fields" :key="f.field" class="dl-prop">
+              <div class="dl-prop-label">{{ f.label }}</div>
+              <div class="dl-prop-value">
+                <!-- 字典 Tag（§5.4） -->
+                <template v-if="f.type === 'dict' && !isEmpty(f)">
+                  <a-tag v-if="tagColor(f)" :color="tagColor(f)">{{ text(f) }}</a-tag>
+                  <span v-else>{{ text(f) }}</span>
+                </template>
+                <!-- 金额（§5.3） -->
+                <span v-else-if="f.type === 'amount'" class="dl-amount">{{ text(f) }}</span>
+                <span v-else-if="f.type === 'unitPrice'" class="dl-unit-price">{{ text(f) }}</span>
+                <template v-else>
+                  <slot
+                    :name="`field-${f.field}`"
+                    :field="f"
+                    :data="data"
+                  >
+                    <span :class="{ 'dl-empty-value': isEmpty(f) }">{{ text(f) }}</span>
+                  </slot>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </a-skeleton>
 
@@ -158,30 +163,32 @@ const showAnchor = computed(() => blocks.value.length >= 3)
 
 <style scoped>
 .dl-detail-body {
-  display: block;
   width: 100%;
   max-width: 860px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 24px 24px 32px;
 }
 
-/* 定义列表排版（07 v2.0 §3.4）：标签定宽次要色、值左对齐、单列基线一致 */
-.dl-detail-body :deep(.ant-descriptions-item-label) {
-  width: 112px;
-  min-width: 112px;
+/* 属性网格（07 v2.0 §3.4）：2 列、标签上值下、行距 20 列距 32 */
+.dl-prop-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 32px;
+}
+
+.dl-prop {
+  min-width: 0;
+}
+
+.dl-prop-label {
+  margin-bottom: 4px;
+  font-size: 12px;
   color: var(--dl-text-secondary);
-  font-size: 13px;
-  white-space: nowrap;
-  vertical-align: top;
-  padding-top: 1px;
 }
 
-.dl-detail-body :deep(.ant-descriptions-item-content) {
-  vertical-align: top;
+.dl-prop-value {
   font-size: 14px;
-}
-
-.dl-detail-body :deep(.ant-descriptions-item) {
-  padding-bottom: 12px;
+  color: var(--dl-title-color);
+  overflow-wrap: anywhere;
 }
 </style>

@@ -177,17 +177,15 @@ async function onAction(act: DeckDetailAction): Promise<void> {
     @close="onClose"
   >
     <template #header-actions>
-      <a-space wrap>
-        <a-button
-          v-for="act in actions"
-          :key="act.key"
-          :type="act.primary ? 'primary' : 'default'"
-          :danger="act.danger"
-          @click="onAction(act)"
-        >
-          {{ act.label }}
-        </a-button>
-      </a-space>
+      <a-button
+        v-for="act in actions"
+        :key="act.key"
+        :type="act.primary ? 'primary' : 'default'"
+        :danger="act.danger"
+        @click="onAction(act)"
+      >
+        {{ act.label }}
+      </a-button>
     </template>
 
     <!-- 最近任务状态 tag（deck.md §6；task.TaskStatus 属 gen 域字典） -->

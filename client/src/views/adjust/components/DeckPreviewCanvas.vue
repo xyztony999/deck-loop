@@ -220,11 +220,17 @@ function clearSelection(): void {
 </template>
 
 <style scoped>
+/* 画布根 = 单盒台面（07 v2.0：2026-10-23 图3 重构）：深底 + 描边 + 圆角，
+ * 版本行与白纸页卡同坐台面，不再 wrapper+内层双层盒 */
 .dl-canvas {
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: 100%;
+  background: var(--dl-bg-page);
+  border: 1px solid var(--dl-border-light);
+  border-radius: 8px;
+  padding: 12px 16px;
 }
 
 .dl-canvas-head {
@@ -232,7 +238,7 @@ function clearSelection(): void {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .dl-canvas-head-left {
@@ -261,8 +267,7 @@ function clearSelection(): void {
   font-size: 13px;
 }
 
-/* 画布区装裱（2026-10-23 图3）：白纸坐页面底色台面 + 柔和投影——
- * 暗色下白纸是"台面上的文档"而非"界面里的白洞"；白纸本身保真不动（07 §1） */
+/* 页卡滚动区（台面色由根节点承担，此处仅滚动布局） */
 .dl-canvas-pages {
   flex: 1;
   min-height: 0;
@@ -270,10 +275,6 @@ function clearSelection(): void {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: var(--dl-bg-page);
-  border: 1px solid var(--dl-border-light);
-  border-radius: 8px;
-  padding: 12px;
 }
 
 /* 07-ui-design-language.md：页卡 = 文档表面（--dl-doc-bg 永远白纸，内容/状态色

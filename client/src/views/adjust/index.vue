@@ -609,9 +609,9 @@ const activeTab = ref('instruction')
         </template>
       </a-alert>
 
-      <!-- 三区主体：左画布 60% / 右指令与版本面板 40%（§4；07 v2.0 描边面板） -->
+      <!-- 三区主体：左画布 60% / 右指令与版本面板 40%（§4；07 v2.0 单盒面板） -->
       <div class="adjust-main">
-        <div class="adjust-panel adjust-left">
+        <div class="adjust-left">
           <DeckPreviewCanvas
             :pages="versionContent.pages.value"
             :file-urls="versionContent.fileUrls.value"
@@ -630,7 +630,7 @@ const activeTab = ref('instruction')
           />
         </div>
 
-        <div class="adjust-panel adjust-right">
+        <div class="adjust-right">
           <a-tabs v-model:active-key="activeTab" size="small">
             <!-- Tab1 调整指令（§4.2） -->
             <a-tab-pane key="instruction" tab="调整指令">
@@ -742,22 +742,21 @@ const activeTab = ref('instruction')
   align-items: stretch;
 }
 
-/* 07 v2.0 工作台面板：描边区域（tile 语言），非第二层表面卡片 */
-.adjust-panel {
-  border: 1px solid var(--dl-border-light);
-  border-radius: 8px;
-  padding: 12px;
-  min-width: 0;
-}
-
+/* 07 v2.0 工作台：单盒面板——左画布台面由 DeckPreviewCanvas 根节点承担
+ * （深底 + 边框 + 圆角），右侧为描边面板；不再 wrapper+内容双层盒 */
 .adjust-left {
+  min-width: 0;
   max-height: calc(100vh - 220px);
   overflow-y: auto;
 }
 
 .adjust-right {
+  min-width: 0;
   max-height: calc(100vh - 220px);
   overflow-y: auto;
+  border: 1px solid var(--dl-border-light);
+  border-radius: 8px;
+  padding: 12px 16px;
 }
 
 /* 嵌套引擎 .dl-page：随内容伸展，不占满屏 */

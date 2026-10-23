@@ -696,7 +696,9 @@ const activeTab = ref('instruction')
 .adjust-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
+  /* 工作台坐页面底（暗色车间）：面板用表面色亮板，缝隙靠明暗分层可辨 */
+  background: var(--dl-bg-page);
 }
 
 .adjust-guard-body {
@@ -738,7 +740,7 @@ const activeTab = ref('instruction')
 .adjust-main {
   display: grid;
   grid-template-columns: 3fr 2fr; /* 60% / 40%（§4） */
-  gap: 16px;
+  gap: 24px;
   align-items: stretch;
 }
 
@@ -754,6 +756,7 @@ const activeTab = ref('instruction')
   min-width: 0;
   max-height: calc(100vh - 220px);
   overflow-y: auto;
+  background: var(--dl-card-bg);
   border: 1px solid var(--dl-border-light);
   border-radius: 8px;
   padding: 12px 16px;

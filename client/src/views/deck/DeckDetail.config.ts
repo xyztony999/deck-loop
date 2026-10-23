@@ -12,18 +12,14 @@
  */
 import type { DlDetailPageConfig } from '@/engine'
 
-import { DECK_DICT_STATUS, DECK_DICT_TYPE } from './deck.shared'
-
 export const deckDetailConfig: DlDetailPageConfig = {
   title: '创作物详情',
   blocks: [
     {
       key: 'basic',
       title: '基本信息',
+      // 名称/类型/状态上移到实体头阵（#lead 槽），避免与头阵重复
       fields: [
-        { field: 'deckName', label: '名称' },
-        { field: 'deckType', label: '类型', type: 'dict', dictKey: DECK_DICT_TYPE },
-        { field: 'deckStatus', label: '状态', type: 'dict', dictKey: DECK_DICT_STATUS },
         { field: 'topic', label: '主题' },
         { field: 'requirement', label: '需求描述' },
         { field: 'brandKitName', label: '默认品牌规范' },

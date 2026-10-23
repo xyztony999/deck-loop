@@ -19,6 +19,8 @@ import { DlDetailPage, executeAction, useDict } from '@/engine'
 
 import { deckDetailConfig } from './DeckDetail.config'
 import {
+  DECK_DICT_STATUS,
+  DECK_DICT_TYPE,
   TASK_DICT_STATUS,
   type DeckDetailAction,
   type DeckDetailVO,
@@ -44,6 +46,9 @@ const loading = ref(false)
 /** 最近任务状态 tag（gen 域 task.TaskStatus 字典；颜色经 registerTaskStatusColors） */
 const taskDict = useDict('gen', [TASK_DICT_STATUS])
 const latestTaskStatus = computed(() => detail.value?.latestTask?.taskStatus ?? '')
+
+/** 实体头阵（#lead 槽）：名称大字 + 状态/类型 tag（deck 域字典） */
+const deckDict = useDict('deck', [DECK_DICT_STATUS, DECK_DICT_TYPE])
 
 /** DlDetailPage 数据：DetailVO + 呈现层扁平字段（stats/latestTask 嵌套展开） */
 const display = computed<Record<string, unknown> | null>(() => {
@@ -188,6 +193,25 @@ async function onAction(act: DeckDetailAction): Promise<void> {
       </a-button>
     </template>
 
+    <!-- 实体头阵：名称 + 状态/类型 tag（07 v2.0 §3.4；替代属性网格首行重复） -->
+    <template #lead>
+      <div class="deck-lead">
+        <h2 class="deck-lead-name">{{ display?.deckName ?? '—' }}</h2>
+        <a-tag
+          v-if="display?.deckStatus"
+          :color="deckDict.color(DECK_DICT_STATUS, String(display.deckStatus))"
+        >
+          {{ deckDict.label(DECK_DICT_STATUS, String(display.deckStatus)) }}
+        </a-tag>
+        <a-tag
+          v-if="display?.deckType"
+          :color="deckDict.color(DECK_DICT_TYPE, String(display.deckType))"
+        >
+          {{ deckDict.label(DECK_DICT_TYPE, String(display.deckType)) }}
+        </a-tag>
+      </div>
+    </template>
+
     <!-- 最近任务状态 tag（deck.md §6；task.TaskStatus 属 gen 域字典） -->
     <template #field-latestTaskText>
       <a-tag
@@ -200,3 +224,22 @@ async function onAction(act: DeckDetailAction): Promise<void> {
     </template>
   </DlDetailPage>
 </template>
+
+<style scoped>
+/* 实体头阵（07 v2.0 §3.4）：名称大字 + 关键 tag 同行 */
+.deck-lead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.deck-lead-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--dl-title-color);
+  overflow-wrap: anywhere;
+}
+</style>

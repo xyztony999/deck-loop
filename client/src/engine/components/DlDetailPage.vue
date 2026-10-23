@@ -92,6 +92,8 @@ const showAnchor = computed(() => blocks.value.length >= 3)
          居中容器必须自建在插槽内而非挂在 a-skeleton 上 -->
     <a-skeleton :loading="loading" active :paragraph="{ rows: 6 }">
       <div class="dl-detail-body">
+        <!-- 实体头阵槽（07 v2.0 §3.4：名称大字 + 关键 tag，打破属性网格单调） -->
+        <slot name="lead" />
         <div
           v-for="block in blocks"
           :id="`dl-detail-${block.key}`"

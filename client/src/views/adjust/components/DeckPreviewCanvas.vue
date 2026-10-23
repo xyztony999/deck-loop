@@ -220,14 +220,14 @@ function clearSelection(): void {
 </template>
 
 <style scoped>
-/* 画布根 = 单盒台面（07 v2.0：2026-10-23 图3 重构）：深底 + 描边 + 圆角，
+/* 画布根 = 单盒台面（07 v2.0）：表面色板 + 描边 + 圆角，坐页面底的工作台上；
  * 版本行与白纸页卡同坐台面，不再 wrapper+内层双层盒 */
 .dl-canvas {
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: 100%;
-  background: var(--dl-bg-page);
+  background: var(--dl-card-bg);
   border: 1px solid var(--dl-border-light);
   border-radius: 8px;
   padding: 12px 16px;

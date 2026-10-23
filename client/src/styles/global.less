@@ -168,6 +168,12 @@ body {
   margin-bottom: 0;
 }
 
+// 相邻小节间细分隔线（07 v2.0 §3.4：结构节奏，防灰墙单调）
+.dl-section + .dl-section {
+  border-top: 1px solid var(--dl-border-light);
+  padding-top: 24px;
+}
+
 .dl-section-title {
   margin: 0 0 16px;
   font-size: 13px;

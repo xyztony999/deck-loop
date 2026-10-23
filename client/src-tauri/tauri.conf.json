@@ -5,7 +5,7 @@
   "identifier": "com.deckloop.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:5390",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist"
   },

@@ -36,8 +36,11 @@ export default defineConfig(({ mode }) => {
     },
   },
   server: {
-    port: 5173,
-    strictPort: false,
+    // 5390：避开 Windows Hyper-V/WinNAT 动态端口排除段（5146-5245 吞掉默认 5173，
+    // 报 EACCES ::1:5173；排除段随重启漂移，改用 5358-5457 空档）。strictPort
+    // 让落段时立刻显式报错而不是静默换端口（tauri devUrl 固定）
+    port: 5390,
+    strictPort: true,
     proxy: {
       '/api': {
         target: apiTarget,

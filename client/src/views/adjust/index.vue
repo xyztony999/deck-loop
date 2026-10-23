@@ -697,8 +697,10 @@ const activeTab = ref('instruction')
   display: flex;
   flex-direction: column;
   gap: 24px;
-  /* 工作台坐页面底（暗色车间）：面板用表面色亮板，缝隙靠明暗分层可辨 */
+  /* 工作台坐页面底（暗色车间）：面板用表面色亮板，缝隙靠明暗分层可辨；
+   * 页面自带内边距——描边面板不得贴窗口/侧栏边缘 */
   background: var(--dl-bg-page);
+  padding: 0 24px 24px;
 }
 
 .adjust-guard-body {
@@ -712,6 +714,11 @@ const activeTab = ref('instruction')
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+/* 页头行坐已内边距的页面：去全局 24 水平内边距，标题与面板左缘对齐 */
+.adjust-page .dl-page-header.adjust-topbar {
+  padding: 16px 0;
 }
 
 .adjust-topbar-left {

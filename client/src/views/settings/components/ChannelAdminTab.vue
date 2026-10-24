@@ -458,6 +458,55 @@ const columns = [
 </template>
 
 <style scoped>
+/* 弹层骨架（结构与 ExportCreateDialog 同款；scoped 各自持有，不能省） */
+.dl-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 48px 16px;
+}
+
+.dl-dialog {
+  background: var(--dl-card-bg);
+  border: 1px solid var(--dl-border-light);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dl-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--dl-border-light);
+}
+
+.dl-dialog-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dl-title-color);
+}
+
+.dl-dialog-body {
+  padding: 16px;
+}
+
+.dl-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--dl-border-light);
+}
+
 .channel-admin {
   padding: 0 24px 24px;
 }

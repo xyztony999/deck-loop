@@ -191,4 +191,38 @@ describe('渠道管理端（/channel/admin/*）', () => {
     const vo = okData(res, '连通性测试') as Record<string, unknown>;
     expect(typeof vo.ok).toBe('boolean');
   });
+
+  it('自动获取模型：GET {baseUrl}/models 解析为模型行（密钥走已存渠道）', async () => {
+    const spy = jest.spyOn(global, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith('/models')) {
+        return new Response(
+          JSON.stringify({ data: [{ id: 'glm-4.7' }, { id: 'glm-4.6' }, { id: 'glm-4.5-air' }] }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    try {
+      const res = await postJson(ctx, session, '/channel/admin/fetch-models', {
+        channelCode: 'GLM',
+      });
+      const vo = okData(res, '获取模型') as Record<string, unknown>;
+      expect(vo.ok).toBe(true);
+      const models = vo.models as Array<{ modelCode: string }>;
+      expect(models.map((m) => m.modelCode)).toEqual(['glm-4.7', 'glm-4.6', 'glm-4.5-air']);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('自动获取模型：内网地址被 SSRF 防线拒绝', async () => {
+    const res = await postJson(ctx, session, '/channel/admin/fetch-models', {
+      apiBaseUrl: 'http://192.168.1.1:8000',
+      apiKey: TEST_ZHIPU_PLAIN_KEY,
+    });
+    const vo = okData(res, '获取模型') as Record<string, unknown>;
+    expect(vo.ok).toBe(false);
+    expect(String(vo.errorMsg)).toContain('内网');
+  });
 });

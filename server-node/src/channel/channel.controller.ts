@@ -5,6 +5,8 @@ import { ChannelAdminService } from './channel-admin.service';
 import { ChannelPreferenceService } from './channel.service';
 import {
   ChannelAdminCodeAO,
+  ChannelAdminFetchModelsAO,
+  ChannelAdminFetchModelsVO,
   ChannelAdminItemVO,
   ChannelAdminListVO,
   ChannelAdminSaveAO,
@@ -114,5 +116,14 @@ export class ChannelController {
   @HttpCode(HttpStatus.OK)
   async adminTest(@Body() ao: ChannelAdminTestAO): Promise<Result<ChannelAdminTestVO>> {
     return Result.success(await this.adminService.test(ao));
+  }
+
+  /** #10 自动获取模型清单（GET {baseUrl}/models，OpenAI 兼容；失败回显原因不抛错） */
+  @Post('admin/fetch-models')
+  @HttpCode(HttpStatus.OK)
+  async adminFetchModels(
+    @Body() ao: ChannelAdminFetchModelsAO,
+  ): Promise<Result<ChannelAdminFetchModelsVO>> {
+    return Result.success(await this.adminService.fetchModels(ao));
   }
 }

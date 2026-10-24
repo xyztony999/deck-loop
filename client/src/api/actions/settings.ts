@@ -59,6 +59,11 @@ export const channelModule = defineModule('channel', {
     path: '/channel/admin/test',
     type: 'save',
   },
+  adminFetchModels: {
+    method: 'POST',
+    path: '/channel/admin/fetch-models',
+    type: 'save',
+  },
 })
 
 /**

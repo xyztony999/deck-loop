@@ -528,3 +528,38 @@ export class ChannelAdminTestVO {
     this.errorMsg = errorMsg;
   }
 }
+
+/** 管理端·自动获取模型 AO：channelCode 走已存密钥；否则临时 baseUrl+apiKey */
+export class ChannelAdminFetchModelsAO {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  channelCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  apiBaseUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  apiKey?: string;
+}
+
+/** 管理端·自动获取模型 VO（失败回显原因不抛错；模型上限 100 防御） */
+export class ChannelAdminFetchModelsVO {
+  ok!: boolean;
+  models!: { modelCode: string; modelName: string }[];
+  errorMsg?: string;
+
+  constructor(
+    ok: boolean,
+    models: { modelCode: string; modelName: string }[] = [],
+    errorMsg?: string,
+  ) {
+    this.ok = ok;
+    this.models = models;
+    this.errorMsg = errorMsg;
+  }
+}

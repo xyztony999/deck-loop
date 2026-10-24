@@ -42,6 +42,7 @@ MongoDB 仅有偏好（dl_channel_preference）与用量（dl_channel_usage_reco
 | /channel/admin/save | {channelCode*, creating?（true=新建语义，须不存在；缺省=编辑，须已存在）, channelName*, apiBaseUrl*, apiKey?（空=保留）, apiKeyEnv?, priority, enabled, models*[≥1 且含编码/名称]} | 校验+落库+reload；新建时 apiKey 与 apiKeyEnv 二选一 |
 | /channel/admin/set-enabled | {channelCode, enabled} | 启用校验 ≥1 启用模型；落库+reload |
 | /channel/admin/test | {channelCode?} 或 {apiBaseUrl, apiKey, modelCode} | 真实最小 chat 请求（max_tokens=1，10s 超时）→ {ok, latencyMs, errorMsg?} |
+| /channel/admin/fetch-models | {channelCode?} 或 {apiBaseUrl, apiKey} | GET {baseUrl}/models（OpenAI 兼容，10s 超时）→ {ok, models[{modelCode,modelName}]≤100, errorMsg?}；失败回显不抛错 |
 错误码新增：BIZ_CHANNEL_CODE_EXISTS / BIZ_CHANNEL_NOT_FOUND / BIZ_CHANNEL_BUILTIN_READONLY /
 BIZ_CHANNEL_NEEDS_ENABLED_MODEL / BIZ_CHANNEL_KEY_MISSING。
 

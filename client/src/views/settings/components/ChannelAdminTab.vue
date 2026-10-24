@@ -166,6 +166,53 @@ function removeModelRow(index: number): void {
   form.models.splice(index, 1)
 }
 
+// ---------------------------------------------------------------
+// 自动获取模型（cc-switch 式：GET {baseUrl}/models；已填能力标签按编码保留）
+// ---------------------------------------------------------------
+
+const fetching = ref(false)
+
+async function onFetchModels(): Promise<void> {
+  if (!form.apiBaseUrl.trim()) {
+    message.warning('请先填写 baseUrl')
+    return
+  }
+  if (form.creating && !form.apiKey.trim() && !form.apiKeyEnv.trim()) {
+    message.warning('请先填写 API Key 或环境变量引用')
+    return
+  }
+  fetching.value = true
+  try {
+    const vo = await executeAction<{
+      ok: boolean
+      models: { modelCode: string; modelName: string }[]
+      errorMsg?: string
+    }>('channel.adminFetchModels', {
+      channelCode: form.creating ? undefined : form.channelCode,
+      apiBaseUrl: form.apiBaseUrl.trim(),
+      apiKey: form.apiKey.trim() || undefined,
+    })
+    if (!vo?.ok) {
+      message.error(`获取模型失败：${vo?.errorMsg ?? '未知原因'}`)
+      return
+    }
+    if (vo.models.length === 0) {
+      message.warning('端点未返回任何模型')
+      return
+    }
+    const prev = new Map(form.models.map((m) => [m.modelCode, m]))
+    form.models = vo.models.map((m) => ({
+      modelCode: m.modelCode,
+      modelName: prev.get(m.modelCode)?.modelName || m.modelName,
+      capabilityTags: prev.get(m.modelCode)?.capabilityTags ?? [],
+      enabled: true,
+    }))
+    message.success(`已获取 ${vo.models.length} 个模型，请为各模型勾选能力标签`)
+  } finally {
+    fetching.value = false
+  }
+}
+
 const apiKeyPlaceholder = computed(() =>
   editMasked.value ? `已配置 ${editMasked.value}，留空保留` : '渠道 API Key',
 )
@@ -406,10 +453,15 @@ const columns = [
               <div class="channel-models">
                 <div class="channel-models-head">
                   <span class="channel-models-title">模型清单</span>
-                  <a-button size="small" @click="addModelRow">
-                    <PlusOutlined />
-                    添加模型
-                  </a-button>
+                  <a-space :size="8">
+                    <a-button size="small" :loading="fetching" @click="onFetchModels">
+                      自动获取
+                    </a-button>
+                    <a-button size="small" @click="addModelRow">
+                      <PlusOutlined />
+                      添加模型
+                    </a-button>
+                  </a-space>
                 </div>
                 <div v-for="(m, i) in form.models" :key="i" class="channel-model-row">
                   <a-input

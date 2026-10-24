@@ -22,6 +22,7 @@ import {
 } from './channel.errors';
 import {
   ChannelAdminCodeAO,
+  ChannelAdminFetchModelsVO,
   ChannelAdminItemVO,
   ChannelAdminListVO,
   ChannelAdminModelVO,
@@ -224,6 +225,71 @@ export class ChannelAdminService {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return new ChannelAdminTestVO(false, Date.now() - startedAt, msg);
+    }
+  }
+
+  /**
+   * 自动获取模型清单（OpenAI 兼容 GET {baseUrl}/models；cc-switch 式体验）。
+   * channelCode 走已存密钥（解密/env 引用）；否则走临时 baseUrl+apiKey。
+   * 失败回显原因不抛错；幂等只读请求。
+   */
+  async fetchModels(ao: {
+    channelCode?: string;
+    apiBaseUrl?: string;
+    apiKey?: string;
+  }): Promise<ChannelAdminFetchModelsVO> {
+    let baseUrl = (ao.apiBaseUrl ?? '').trim();
+    let apiKey = (ao.apiKey ?? '').trim();
+
+    if (ao.channelCode) {
+      const doc = await this.repository.findByCode(ao.channelCode);
+      if (doc === null) {
+        return new ChannelAdminFetchModelsVO(false, [], '渠道不存在');
+      }
+      baseUrl = doc.api_base_url;
+      apiKey =
+        decryptApiKey(doc.api_key_cipher) ??
+        (doc.api_key_env ? (process.env[doc.api_key_env] ?? '') : '');
+    }
+    if (baseUrl.length === 0) {
+      return new ChannelAdminFetchModelsVO(false, [], '请先填写 baseUrl');
+    }
+    try {
+      assertPublicHttpUrl(baseUrl);
+    } catch (err) {
+      return new ChannelAdminFetchModelsVO(
+        false,
+        [],
+        err instanceof BizException ? err.message : 'baseUrl 非法',
+      );
+    }
+
+    try {
+      const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/models`, {
+        method: 'GET',
+        headers: apiKey.length > 0 ? { Authorization: `Bearer ${apiKey}` } : {},
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        return new ChannelAdminFetchModelsVO(
+          false,
+          [],
+          `HTTP ${res.status}${text.length > 0 ? `：${text.slice(0, 200)}` : ''}`,
+        );
+      }
+      const json = (await res.json()) as { data?: Array<{ id?: unknown }> };
+      const models = (Array.isArray(json.data) ? json.data : [])
+        .filter((m) => typeof m?.id === 'string' && m.id.length > 0)
+        .slice(0, 100)
+        .map((m) => ({ modelCode: m.id as string, modelName: m.id as string }));
+      return new ChannelAdminFetchModelsVO(true, models);
+    } catch (err) {
+      return new ChannelAdminFetchModelsVO(
+        false,
+        [],
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 

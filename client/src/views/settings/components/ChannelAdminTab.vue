@@ -303,7 +303,7 @@ function closeForm(): void {
 const columns = [
   { title: '渠道', dataIndex: 'channelName', key: 'channelName', width: 150 },
   { title: '编码', dataIndex: 'channelCode', key: 'channelCode', width: 110 },
-  { title: 'baseUrl', dataIndex: 'apiBaseUrl', key: 'apiBaseUrl', ellipsis: true },
+  { title: 'baseUrl', dataIndex: 'apiBaseUrl', key: 'apiBaseUrl', ellipsis: true, width: 260 },
   { title: '优先级', dataIndex: 'priority', key: 'priority', width: 80, align: 'center' as const },
   { title: '模型', key: 'modelCount', width: 70, align: 'center' as const },
   { title: '密钥', key: 'keyMasked', width: 150 },
@@ -515,7 +515,7 @@ const columns = [
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: flex-start;
   justify-content: center;

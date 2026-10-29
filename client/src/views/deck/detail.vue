@@ -42,6 +42,7 @@ const deckId = computed(() => {
 
 const detail = ref<DeckDetailVO | null>(null)
 const loading = ref(false)
+const loadFailed = ref(false)
 
 /** 最近任务状态 tag（gen 域 task.TaskStatus 字典；颜色经 registerTaskStatusColors） */
 const taskDict = useDict('gen', [TASK_DICT_STATUS])
@@ -76,12 +77,16 @@ async function loadDetail(): Promise<void> {
     return
   }
   loading.value = true
+  loadFailed.value = false
   try {
     detail.value = await executeAction<DeckDetailVO>('deck.deckDetail', {
       deckId: deckId.value,
       withStats: true,
       withLatestTask: true,
     })
+  } catch {
+    // 错误提示由 request 层全局 message 承担；页面给出失败态与重试
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -195,8 +200,20 @@ async function onAction(act: DeckDetailAction): Promise<void> {
 
     <!-- 实体头阵：名称 + 状态/类型 tag（07 v2.0 §3.4；替代属性网格首行重复） -->
     <template #lead>
-      <div class="deck-lead">
-        <h2 class="deck-lead-name">{{ display?.deckName ?? '—' }}</h2>
+      <a-alert
+        v-if="loadFailed"
+        type="error"
+        show-icon
+        message="详情加载失败"
+        description="网络或服务暂不可用，可重试；若持续失败请联系管理员。"
+        class="deck-load-failed"
+      >
+        <template #action>
+          <a-button size="small" @click="loadDetail">重试</a-button>
+        </template>
+      </a-alert>
+      <div v-if="display?.deckName" class="deck-lead">
+        <h2 class="deck-lead-name">{{ display.deckName }}</h2>
         <a-tag
           v-if="display?.deckStatus"
           :color="deckDict.color(DECK_DICT_STATUS, String(display.deckStatus))"
@@ -227,6 +244,10 @@ async function onAction(act: DeckDetailAction): Promise<void> {
 
 <style scoped>
 /* 实体头阵（07 v2.0 §3.4）：名称大字 + 关键 tag 同行 */
+.deck-load-failed {
+  margin-bottom: 24px;
+}
+
 .deck-lead {
   display: flex;
   align-items: center;

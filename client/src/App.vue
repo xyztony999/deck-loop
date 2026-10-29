@@ -20,6 +20,7 @@ import { getDlTheme } from '@/styles/theme'
 import { useSyncStore } from '@/stores/sync'
 import { useLogout } from '@/composables/useLogout'
 import LogoMark from '@/components/LogoMark.vue'
+import zhCN from 'ant-design-vue/es/locale/zh_CN'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,7 +55,7 @@ function onNavClick(e: { key: string | number }): void {
 </script>
 
 <template>
-  <a-config-provider :theme="themeConfig">
+  <a-config-provider :theme="themeConfig" :locale="zhCN">
     <!-- 登录等裸页 -->
     <router-view v-if="isBare" :key="`${sync.accountId}:${sync.revision}`" />
 

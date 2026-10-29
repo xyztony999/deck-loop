@@ -267,7 +267,7 @@ function close(): void {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: stretch;
   justify-content: center;

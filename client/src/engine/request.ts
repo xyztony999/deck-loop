@@ -1,8 +1,11 @@
 /**
  * 统一 HTTP 请求层（frontend-specs 02-mandatory 规则 1/8 的 deck-loop 等价实现）。
  *
- * - baseURL '/api'：业务代码 URL 一律不含 /api 前缀，由 vite 代理（dev）/
- *   Tauri 资源层承担前缀剥离（规则 8）。
+ * - API 基址（API_BASE_URL）：业务代码 URL 一律不含 /api 前缀，前缀由本常量承担。
+ *   - dev：构建期未注入 VITE_API_BASE_URL → 相对 '/api'，走 vite 代理（规则 8）；
+ *   - 生产（Tauri 安装版）：页面来自 Tauri 自有源（tauri.localhost），**没有代理**——
+ *     必须经构建期 env `VITE_API_BASE_URL=https://<域名>/api` 注入绝对地址
+ *     （client/.env.production，gitignore；域名不入仓），否则请求打在自身源上永不到达服务端。
  * - 响应拦截统一解包 Result{status,code,msg,data}：成功返回 data，
  *   失败 message.error + reject。
  * - 401 / 会话失效（BIZ_AUTH_SESSION_EXPIRED）→ 经 authBridge 回调清态回登录页。
@@ -23,6 +26,15 @@ export const CODE_SESSION_EXPIRED = 'BIZ_AUTH_SESSION_EXPIRED'
 
 /** HTTP 401 */
 export const HTTP_UNAUTHORIZED = 401
+
+/**
+ * API 基址（唯一来源）：构建期 env `VITE_API_BASE_URL` 优先，缺省相对 '/api'（dev 代理）。
+ * 所有需要拼完整接口地址的地方（axios baseURL / SSE EventSource / 下载 href）一律取本常量，
+ * 禁止各处手写 '/api'。
+ */
+export const API_BASE_URL: string = (
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api'
+).replace(/\/+$/, '')
 
 /**
  * 认证桥：request.ts 不直接依赖 pinia store（避免循环引用与
@@ -50,7 +62,7 @@ function handleUnauthorized(reason: string): void {
 }
 
 const instance: AxiosInstance = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
 })

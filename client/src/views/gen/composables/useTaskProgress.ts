@@ -11,7 +11,7 @@
  */
 import { onBeforeUnmount, reactive, ref } from 'vue'
 
-import { executeAction } from '@/engine/actionExecutor'
+import { API_BASE_URL, executeAction } from '@/engine'
 import { useAuthStore } from '@/stores/auth'
 import type { TaskProgressItem } from '../types'
 import { TASK_STATUS, isTerminalTaskStatus } from '../types'
@@ -131,7 +131,8 @@ export function useTaskProgress(options: UseTaskProgressOptions = {}) {
     if (deckId) params.set('deckId', deckId)
 
     try {
-      source = new EventSource(`/api/gw/task/stream?${params.toString()}`)
+      // 基址取 API_BASE_URL：Tauri 安装版为绝对地址（相对 '/api' 会打在 tauri.localhost 自身源上）
+      source = new EventSource(`${API_BASE_URL}/gw/task/stream?${params.toString()}`)
     } catch {
       sseAbandoned = true // 环境不支持：静默降级
       return

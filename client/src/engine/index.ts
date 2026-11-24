@@ -7,12 +7,14 @@
 export * from './types'
 export * from './pageSchemas'
 export {
+  API_BASE_URL,
   setAuthBridge,
   post,
   postForm,
   get,
   rawAxios,
   CODE_SESSION_EXPIRED,
+  HTTP_UNAUTHORIZED,
   type AuthBridge,
 } from './request'
 export {

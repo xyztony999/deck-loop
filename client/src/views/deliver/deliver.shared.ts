@@ -17,7 +17,7 @@ import {
   uploadArtifact,
 } from '@/services/exportRender'
 
-import { executeAction, getAction, rawAxios, registerDictColorMap } from '@/engine'
+import { API_BASE_URL, executeAction, getAction, rawAxios, registerDictColorMap } from '@/engine'
 import type { RowWithOperList } from '@/engine'
 
 // ---------------------------------------------------------------
@@ -216,17 +216,21 @@ async function fetchExportFile(exportId: string): Promise<ExportFilePayload> {
 }
 
 /**
- * 组装下载地址：ticket.url 优先（相对路径补 /api 前缀，与 axios baseURL
- * 同规约）；未回 url 时按 GET download 契约（?exportId=&token=）自拼，
- * 路径取自注册表 action（不重复硬编码 URL）。
+ * 组装下载地址：ticket.url 优先（相对路径补 API 基址，与 axios baseURL 同规约）；
+ * 未回 url 时按 GET download 契约（?exportId=&token=）自拼，路径取自注册表 action
+ * （不重复硬编码 URL；前缀统一取 API_BASE_URL——Tauri 安装版为绝对地址）。
  */
 function resolveDownloadHref(exportId: string, ticket: DownloadTicketVO): string {
   const url = typeof ticket.url === 'string' ? ticket.url.trim() : ''
   if (url) {
     if (/^https?:\/\//i.test(url)) return url
-    return url.startsWith('/api') ? url : `/api${url.startsWith('/') ? '' : '/'}${url}`
+    // 服务端可能回「带 /api 前缀的相对路径」：先剥前缀再统一补基址
+    // （dev 下基址即 '/api'，结果与原路径一致；安装版则得到正确的绝对地址而非双 /api）
+    const path = url === '/api' || url.startsWith('/api/') ? url.slice(4) : url
+    return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`
   }
-  const base = getAction('deliver.exportDownload')?.path ?? '/deliver/export/download'
+  const actionPath = getAction('deliver.exportDownload')?.path ?? '/deliver/export/download'
+  const base = `${API_BASE_URL}${actionPath.startsWith('/') ? '' : '/'}${actionPath}`
   const token = typeof ticket.token === 'string' ? ticket.token : ''
   return `${base}?exportId=${encodeURIComponent(exportId)}&token=${encodeURIComponent(token)}`
 }

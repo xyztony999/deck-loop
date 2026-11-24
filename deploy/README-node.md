@@ -84,6 +84,20 @@ curl -s https://api.<你的域名>/api/auth/account/profile
 
 客户端本机 `cd client && pnpm dev`（代理已指向该域名）→ 注册开测。
 
+## 客户端安装版（Tauri release）构建注意
+
+客户端 API 基址 = `client/src/engine/request.ts` 的 `API_BASE_URL`：**dev 为相对 `/api`（走 vite 代理）；
+安装版页面来自 Tauri 自有源、没有代理**，必须经构建期 env 注入绝对地址，否则登录等请求打在
+`tauri.localhost` 自身源上、永不到达服务端（症状：客户端登录无反应/失败，而服务端日志里没有请求）。
+
+```bash
+# client/.env.production（gitignore，域名不入仓；`pnpm build` / `tauri build` 自动加载，dev 不加载）
+VITE_API_BASE_URL=https://api.<你的域名>/api
+cd client && pnpm tauri build          # 或仅重建 exe：pnpm tauri build --no-bundle
+```
+
+构建产物里应能搜到该绝对地址（`grep -l "api\.<域名>/api" dist/assets/*.js`）。
+
 ## 运维要点
 
 - **更新版本**：本地 `npm run build` → 打包 `dist/ + package.json + pnpm-lock?`（或整包）上传 → `npm ci --omit=dev` → `pm2 restart deck-loop-core`

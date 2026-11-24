@@ -32,9 +32,6 @@ importers:
       eventemitter2:
         specifier: ^6.4.9
         version: 6.4.9
-      mongodb:
-        specifier: ^6.12.0
-        version: 6.21.0
       multer:
         specifier: 2.0.2
         version: 2.0.2
@@ -75,6 +72,9 @@ importers:
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@22.20.5)
+      mongodb:
+        specifier: ^6.12.0
+        version: 6.21.0
       pg-mem:
         specifier: ^3.0.5
         version: 3.0.14(typeorm@0.3.31(mongodb@6.21.0)(pg@8.23.1))

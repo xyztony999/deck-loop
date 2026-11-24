@@ -258,7 +258,8 @@ DataSource.transaction(async (manager) => {
 - 校验：源计数 vs 目标计数（目标可多于源——如 builtin 渠道 seed，仅提示）；聚合不一致 → 退出码 1。
 - 安全：密码仅经 env/参数（日志脱敏 `://***@`）；脚本不删除源数据（Mongo 下线另经授权）。
 - **部署形态**：脚本随 `pnpm build` 编译进部署包（`dist/scripts/`，`tsconfig.scripts.json`）；
-  `mongodb` 已移入 dependencies（服务器 `--prod` node_modules 可用）——Mongo 下线后可回收。
+  迁移期 `mongodb` 曾临时移入 dependencies（服务器 `--prod` node_modules 可用），**迁移完成后已移回
+  devDependencies**（2026-11-24；MongoDB 随后从服务器卸载，脚本保留为开发期工具/流程存档）。
 - 单测：`test/migrate-mongo-to-pg.spec.ts`（pg-mem + 内存源跑通 transform/upsert/默认/幂等/聚合）。
 
 ## 6. 测试基建改造（实况）

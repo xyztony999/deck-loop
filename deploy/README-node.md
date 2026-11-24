@@ -13,7 +13,7 @@
 ```
 
 > **ADR-016（2026-11-24）**：持久层已由 MongoDB 迁至 PostgreSQL（TypeORM）。服务器只跑**一个数据库进程**；
-> MongoDB 仅在一次性数据迁移期间保留（见下文「PostgreSQL 切换 runbook」）。
+> MongoDB 已于 2026-11-24 完成迁移并从服务器**卸载**（下文「PostgreSQL 切换 runbook」保留为流程存档）。
 
 ## 1. 服务器准备（宝塔）
 

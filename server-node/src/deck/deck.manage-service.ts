@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/mongoose';
-import type { Connection } from 'mongoose';
+import { InjectDataSource } from '@nestjs/typeorm';
+import type { DataSource } from 'typeorm';
 import { BizException } from '../common/exceptions';
 import { DeckStatus, DeckType, DeleteSign, ExportStatus, TaskStatus, TaskType } from '../common/enums';
 import { PageResult, SelectOption } from '../common/result';
@@ -59,7 +59,7 @@ export class DeckManageService {
     private readonly deckRepository: DeckRepository,
     private readonly deckStatsRepository: DeckStatsRepository,
     private readonly eventPublisher: DeckEventPublisher,
-    @InjectConnection() private readonly connection: Connection,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   // ------------------------------------------------------------------
@@ -153,7 +153,7 @@ export class DeckManageService {
   private async createDeck(ao: DeckSaveAO, userId: string): Promise<DeckSaveVO> {
     const now = new Date();
     let created: DeckDocument | undefined;
-    await this.connection.transaction(async (session) => {
+    await this.dataSource.transaction(async (session) => {
       const prefix = DeckManageService.todayCodePrefix();
       const deckCode = this.buildNextDeckCode(
         prefix,

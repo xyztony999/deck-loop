@@ -1,22 +1,13 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule, SchemaFactory } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ChannelController } from './channel.controller';
 import { ChannelPreferenceService } from './channel.service';
 import { ChannelRepository } from './channel.repository';
 import { ChannelAdminService } from './channel-admin.service';
 import { ChannelConfigRepository } from './channel-config.repository';
-import {
-  ChannelConfig,
-  ChannelConfigSchema,
-} from './schemas/channel-config.schema';
-import {
-  ChannelPreference,
-  ChannelPreferenceSchema,
-} from './schemas/channel-preference.schema';
-import {
-  ChannelUsageRecordRow,
-  ChannelUsageRecordRowSchema,
-} from './schemas/channel-usage-record.schema';
+import { ChannelConfig } from './schemas/channel-config.schema';
+import { ChannelPreference } from './schemas/channel-preference.schema';
+// ChannelUsageRecordRow 为 dl_usage_record 只读投影（ADR-016：SQL 直查，无独立 entity）
 
 /**
  * channel 域模块（api-channel 4 端点 + 渠道管理端 5 端点 channel-admin-2026-10-23）：
@@ -31,17 +22,7 @@ import {
  * - dl_channel 权威 schema 在本域；platform/gateway 持同集合只读投影（快照加载）。
  */
 @Module({
-  imports: [
-    MongooseModule.forFeature([
-      { name: ChannelPreference.name, schema: SchemaFactory.createForClass(ChannelPreference) },
-      {
-        name: ChannelUsageRecordRow.name,
-        schema: SchemaFactory.createForClass(ChannelUsageRecordRow),
-      },
-      // 渠道配置聚合根（管理端权威 schema；platform 侧有同集合只读投影）
-      { name: ChannelConfig.name, schema: SchemaFactory.createForClass(ChannelConfig) },
-    ]),
-  ],
+  imports: [TypeOrmModule.forFeature([ChannelConfig, ChannelPreference])],
   controllers: [ChannelController],
   providers: [
     ChannelRepository,

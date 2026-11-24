@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AssetModule } from '../asset/asset.module';
 import { DeckModule } from '../deck/deck.module';
 import { SYNC_CHANGE_SCANNER } from '../platform/sync/sync-change-scanner';
-import { DECK_VERSION_MODEL, DeckVersionSchema } from './schemas/dl_deck_version.schema';
+import { DeckVersion } from './schemas/dl_deck_version.schema';
 import { VersionRepository } from './version.repository';
 import { VersionEventPublisher } from './version.events';
 import { VersionArchiveService } from './version.archive-service';
@@ -30,7 +30,7 @@ import { VersionDictController } from './version.dict.controller';
  */
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: DECK_VERSION_MODEL, schema: DeckVersionSchema }]),
+    TypeOrmModule.forFeature([DeckVersion]),
     DeckModule,
     AssetModule,
   ],

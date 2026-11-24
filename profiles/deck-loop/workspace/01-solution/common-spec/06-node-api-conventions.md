@@ -4,9 +4,9 @@
 
 | 属性 | 值 |
 |------|-----|
-| 版本 | v1.1 |
-| 日期 | 2026-10-08 |
-| 服务形态 | Node.js + TypeScript + NestJS 单服务 deck-loop-core + MongoDB（宝塔「Node 项目」部署/PM2 守护+内存限额，MongoDB 用服务器既有实例；Docker Compose 备选——ADR-011） |
+| 版本 | v1.2 |
+| 日期 | 2026-11-24 |
+| 服务形态 | Node.js + TypeScript + NestJS 单服务 deck-loop-core + **PostgreSQL（TypeORM）**（宝塔「Node 项目」部署/PM2 守护+内存限额，PG 与 UniGate 共实例不同 database；Docker Compose 备选——ADR-011/016）。**§3 MongoDB 建模规约自 v1.2 起由 §7 PostgreSQL 增补节替代**；契约冻结（§1）/模块组织（§2）/查询安全（§4）/进程内事件（§5）/错误码枚举（§6）口径不变 |
 
 ## 1. 契约冻结声明
 
@@ -86,10 +86,25 @@
 - 错误码格式与清单不变：`BIZ_{DOMAIN}_{ERROR}`，以各 api 文档 §3.4 为准；全局异常过滤器映射为 `Result{status, code, msg, data}`。
 - 枚举池引用不变：`03-common-enums.md` / `04-business-enum.md`（存储由 VARCHAR(32) 变为 string，**值域与成员不变**；SyncChangeOp 随多端同步复议恢复活跃）。
 
+## 7. PostgreSQL 建模增补节（v1.2，ADR-016，替代 §3）
+
+> 自 v1.2 起持久层为 PostgreSQL（TypeORM 0.3 + @nestjs/typeorm 10 + pg 8）。§3 的 Mongo 建模规约作废，以本节为准；**字段名/语义/审计六件套/乐观锁/软删/契约冻结口径全部保留**。详表见 `02-detailed/api/api-persistence-migration.md`。
+
+- **表与字段平移**：表名沿 `dl_` 前缀，11 张物理表（13 schema 中 dl_generation_task/dl_usage_record/dl_channel 的「全量+只读投影」双模型消解为单 entity + 只读 SQL）。字段名=原列名 snake_case 逐字平移；类型 VARCHAR→varchar、INT→integer、BIGINT→bigint（file_size，仓储归一 number）、DATETIME→timestamptz（毫秒精度）、JSON/Mixed/Map/数组嵌入→jsonb、Boolean→boolean。
+- **主键**：业务主键（deck_id/task_id/version_id/export_id/asset_id/brand_kit_id/template_id/preference_id/account_id/usage_id/channel_code，雪花串）= 表 `PRIMARY KEY`，**取代 ObjectId `_id`**（NR-08：无 `_id` 暴露面）。规则编码（deck_code/task_code/export_code）普通列；唯一/复合索引按各 api §5.3 平移。
+- **嵌入 vs 引用**：原 Mixed 嵌入快照（content/instruction_snapshot/draft_outline/colors/fonts/preference_map/models）→ jsonb 列整体读写；跨聚合引用仍仅存业务 id（应用层 INV 守卫，无物理外键，沿 v1 口径）。
+- **乐观锁/软删**：data_version 条件更新（filter 携带期望值 + `data_version=data_version+1`）；delete_sign 软删（查询默认 0）；日志型 dl_usage_record 只追加。
+- **事务**：`DataSource.transaction(async manager=>…)`；仓储尾参 `session?: EntityManager` 加入外层事务。版本留档恢复 v1 **单事务**（seq 分配 FOR UPDATE + insert + movePointer + adjustRefCounts）；**移除 rs0/keyFile 依赖**（PG 单机即 ACID）。
+- **聚合**：Mongo aggregate → SQL（JOIN/GROUP BY/COALESCE/CTE 分页），服务端静态构造，入参仅作绑定值（NR-02/03）；复合游标以展开 OR 式 `(t>$1) OR (t=$1 AND id>$2)` 表达（ADR-013/F07 口径不变）。
+- **重复键**：PG `23505`（unique_violation）替代 Mongo `11000`，公共 `isDuplicateKeyError` 判定。
+- **测试**：mongodb-memory-server → pg-mem（进程内 PG，registerFunction version/current_database  shim）。
+- **栈依赖**：运行时移除 @nestjs/mongoose/mongoose，新增 @nestjs/typeorm/typeorm/pg；后端栈实质 node-nestjs-mongo→node-nestjs-psql（profile depends 键改名留待用户确认）。
+
 ## 更新记录
 
 | 版本 | 日期 | 变更类型 | 说明 |
 |------|------|---------|------|
+| v1.2 | 2026-11-24 | redirected | ADR-016 持久层 MongoDB→PostgreSQL（TypeORM）：新增 §7 PostgreSQL 建模增补节替代 §3；服务形态注记改 PG/UniGate 共实例；契约冻结/模块组织/查询安全/进程内事件/错误码枚举口径不变；对外 API 契约与客户端零变化 |
 | v1.0 | 2026-10-08 | initial | 随 v3 技术栈重定向新建（替代 java-microservice 20-api-conventions；契约冻结 + Mongo 建模 + 查询安全 + 进程内事件） |
 | v1.1 | 2026-10-08 | reconsidered | 复议修订（D0-v3 §5）：§1 契约冻结声明改「v1 全量 66 端点冻结，无删除」（/auth/sync/pull 及专用配套恢复，v1.0 的删除声明作废）；§3.6 新增同步游标 Mongo 实现规约（Date 毫秒游标+(cursor,id) 复合推进、SyncChangeScanner 八聚合 updated_time+id 升序扫描）；服务形态注记改宝塔 Node 项目部署+既有 MongoDB 实例（ADR-011） |
 

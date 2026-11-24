@@ -23,6 +23,7 @@ import {
   textPageContent,
   toIterating,
 } from './helpers/testing-app';
+import { ExportTask } from '../src/deliver/schemas/dl_export_task.schema';
 
 /** 回传产物夹具（合法魔数）：PDF=%PDF- 头；ZIP 系=PK 头 */
 const PDF_BYTES = Buffer.concat([
@@ -69,7 +70,7 @@ describe('deliver 域导出链路（ExportFlowTest 对齐）', () => {
     );
     const now = new Date();
     const exportId = `9${Date.now()}${Math.floor(Math.random() * 1000)}`;
-    await ctx.connection().collection('dl_export_task').insertOne({
+    await ctx.dataSource().getRepository(ExportTask).insert({
       export_id: exportId,
       export_code: `EXTEST${Date.now()}${Math.floor(Math.random() * 1000)}`,
       deck_id: deckId,

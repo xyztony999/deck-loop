@@ -69,11 +69,12 @@ jobs:
               grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
               echo "swap 已创建"
             fi
-            # 自愈兜底②：mongod 未运行则拉起（宝塔 init.d；OOM 被杀后不自启的教训）
-            if ! pgrep -x mongod >/dev/null 2>&1; then
-              /etc/init.d/mongodb start || true
+            # 自愈兜底②：PostgreSQL 未运行则拉起（ADR-016 持久层已自 MongoDB 迁 PG；
+            # 宝塔 pgsql 的 init.d 若存在则尝试，失败快速报错避免无谓的备份/回滚折腾）
+            if ! pgrep -x postgres >/dev/null 2>&1; then
+              [ -x /etc/init.d/pgsql ] && /etc/init.d/pgsql start || true
               sleep 4
-              pgrep -x mongod >/dev/null || (echo "mongod 拉起失败"; exit 1)
+              pgrep -x postgres >/dev/null || (echo "PostgreSQL 未运行且自动拉起失败——请先在宝塔启动 PostgreSQL"; exit 1)
             fi
             APP_DIR=/www/wwwroot/deck-loop
             cd "$APP_DIR"

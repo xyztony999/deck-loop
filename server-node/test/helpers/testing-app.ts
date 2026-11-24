@@ -12,15 +12,67 @@
  *   首版 DRAFT→ITERATING 经 DeckDomainService#onFirstVersionCreated（回调链同款编排）。
  */
 import { ValidationPipe } from '@nestjs/common';
-import { getConnectionToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
-import type { Connection } from 'mongoose';
+import { DataSource } from 'typeorm';
+import { newDb, DataType } from 'pg-mem';
 import { AppModule } from '../../src/app.module';
+import { ALL_ENTITIES } from '../../src/common/typeorm-config';
 import { DeckDomainService } from '../../src/deck/deck.domain-service';
 import { VersionArchiveService } from '../../src/version/version.archive-service';
 import { VersionArchiveCommand } from '../../src/version/version.dto';
+
+/**
+ * pg-mem 内存 PostgreSQL（ADR-016 测试基建）：每 TestContext 独立建库 +
+ * synchronize=true 建表，覆盖 AppModule 的 DataSource provider（forRoot 不再连真实 PG）。
+ * pg-mem 原生函数极少，TypeORM 初始化/同步所需函数在此注册。
+ */
+/**
+ * 禁用 pg-mem 表达式构建缓存（仅测试环境，幂等）。
+ *
+ * pg-mem 3.x 用 lru-cache 缓存「参数占位符 → 类型化值」的构建结果（index.js _buildValue）。
+ * 同一 SQL 首次执行时按当次绑定值推断参数类型并缓存，后续不同语义复用该缓存会误判
+ * （实测：`delete_sign=$1[0] AND deck_id=$2[雪花串]` 首查恒假返回 0 行，重查即正确）。
+ * 将 lru-cache 的 get 置空使缓存失效→每次重新构建，消除首查误判。真实 PG 无此问题。
+ */
+let pgMemCacheDisabled = false;
+function disablePgMemBuildCache(): void {
+  if (pgMemCacheDisabled) {
+    return;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { createRequire } = require('module') as typeof import('module');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const path = require('path') as typeof import('path');
+  const pgmemDir = path.dirname(require.resolve('pg-mem'));
+  const req = createRequire(path.join(pgmemDir, 'index.js'));
+  const L = req('lru-cache') as { default?: { prototype: { get: unknown } } };
+  const Ctor = (L.default ?? L) as { prototype: { get: () => unknown } };
+  Ctor.prototype.get = () => undefined;
+  pgMemCacheDisabled = true;
+}
+
+export async function createTestDataSource(): Promise<DataSource> {
+  disablePgMemBuildCache();
+  const db = newDb();
+  db.public.registerFunction({ name: 'version', returns: DataType.text, implementation: () => 'PostgreSQL 14.0 (pg-mem)' });
+  db.public.registerFunction({ name: 'current_database', returns: DataType.text, implementation: () => 'deck_loop' });
+  db.public.registerFunction({ name: 'current_schema', returns: DataType.text, implementation: () => 'public' });
+  db.public.registerFunction({
+    name: 'current_setting',
+    returns: DataType.text,
+    args: [DataType.text],
+    implementation: (k: string) => (k === 'server_version_num' ? '140000' : ''),
+  });
+  const dataSource = await db.adapters.createTypeormDataSource({
+    type: 'postgres',
+    entities: ALL_ENTITIES,
+    synchronize: true,
+  });
+  await dataSource.initialize();
+  return dataSource;
+}
 
 /* ------------------------------------------------------------------ */
 /* 会话                                                                */
@@ -59,15 +111,20 @@ export class TestContext {
   private constructor(
     readonly app: INestApplication,
     readonly server: unknown,
+    private readonly ds: DataSource,
   ) {}
 
   /** 启动完整 Nest 应用（含与 main.ts 一致的全局管道），不监听端口 */
   static async create(): Promise<TestContext> {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const dataSource = await createTestDataSource();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(DataSource)
+      .useValue(dataSource)
+      .compile();
     const app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
-    return new TestContext(app, app.getHttpServer());
+    return new TestContext(app, app.getHttpServer(), dataSource);
   }
 
   /** 进程内服务获取（夹具/直调场景） */
@@ -75,9 +132,9 @@ export class TestContext {
     return this.app.get<T>(tokenOrClass, { strict: false });
   }
 
-  /** mongoose 默认连接（直查铺底/断言用） */
-  connection(): Connection {
-    return this.app.get<Connection>(getConnectionToken(), { strict: false });
+  /** TypeORM DataSource（直查铺底/断言用；ADR-016 替代 mongoose connection） */
+  dataSource(): DataSource {
+    return this.ds;
   }
 
   /** 注册 + 登录 → 会话（业务数据以 accountId 为 userId） */

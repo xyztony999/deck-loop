@@ -9,17 +9,23 @@
 ## 拓扑
 
 ```
-客户端 ──HTTPS 443──> 宝塔 Nginx(/api 反代) ──> deck-loop-core(Node, 8080) ──> 服务器既有 MongoDB
+客户端 ──HTTPS 443──> 宝塔 Nginx(/api 反代) ──> deck-loop-core(Node, 18080) ──> PostgreSQL（deck_loop 库；与 UniGate 共实例不同 database）
 ```
+
+> **ADR-016（2026-11-24）**：持久层已由 MongoDB 迁至 PostgreSQL（TypeORM）。服务器只跑**一个数据库进程**；
+> MongoDB 仅在一次性数据迁移期间保留（见下文「PostgreSQL 切换 runbook」）。
 
 ## 1. 服务器准备（宝塔）
 
 1. 宝塔 → 软件商店 → **Node 版本管理器**：安装 **Node 24**（当前 LTS，部署目标版本；工程 engines 下限 >=20，本机 22 开发同源）
-2. MongoDB：**用服务器既有实例**，为其建库（你的既有实例若带认证，用管理员建）：
+2. PostgreSQL：宝塔软件商店安装 **PostgreSQL**（或 `apt install postgresql`），建库建用户：
    ```bash
-   mongosh -u <管理员> -p --authenticationDatabase admin --eval 'db.getSiblingDB("deck_loop").createUser({user:"deck",pwd:"<密码>",roles:[{role:"readWrite",db:"deck_loop"}]})'
+   sudo -u postgres psql -c "CREATE USER deck_loop WITH PASSWORD '<密码>';"
+   sudo -u postgres psql -c "CREATE DATABASE deck_loop OWNER deck_loop;"
+   # UniGate 同理另建库：CREATE DATABASE unigate OWNER unigate;（共实例，省一个数据库进程的内存）
    ```
-   索引随服务启动自动建（schema 声明式），无需手工导 DDL
+   表/索引**不随应用启动自动建**（运行时 `synchronize=false` 红线）：首次由 `node dist/scripts/init-schema.js`
+   一次性建表（见 runbook）；此后 schema 变更走显式脚本。密码建议用 hex（避免 URL 编码问题）
 
 ## 2. 上传工程
 
@@ -39,15 +45,17 @@ cd /www/wwwroot/deck-loop && npm ci --omit=dev
 ## 3. 环境变量（/www/wwwroot/deck-loop/.env，宝塔 Node 项目界面或 PM2 ecosystem 填）
 
 ```ini
-PORT=8080
-MONGODB_URI=mongodb://deck:<密码>@127.0.0.1:27017/deck_loop?authSource=deck_loop
+PORT=18080
+HOST=127.0.0.1
+# PostgreSQL（ADR-016；密码仅存本文件，不入仓库）
+DATABASE_URL=postgresql://deck_loop:<密码>@127.0.0.1:5432/deck_loop
 AUTH_TOKEN_SECRET=<随机长串>
 EXPORT_SIGN_SECRET=<随机长串>
 ASSET_URL_SECRET=<随机长串>
 ASSET_STORAGE_DIR=/www/wwwroot/deck-loop/data/assets
-# AI 渠道（可选；不配则只有内置 MOCK 渠道）
-# GATEWAY_CHANNELS=[{"channelCode":"zhipu","channelName":"智谱","priority":10,"baseUrl":"https://open.bigmodel.cn/api/paas/v4","apiKeyEnv":"ZHIPU_API_KEY","models":[{"modelCode":"glm-4.6","modelName":"GLM-4.6","capabilityTags":["OUTLINE","FULL_GENERATE","FULL_ADJUST","TARGETED_ADJUST"],"enabled":true}]}]
-# ZHIPU_API_KEY=sk-xxx
+# 渠道主密钥（设置→模型渠道保存的 apiKey 加密落库；openssl rand -hex 32）
+CONFIG_ENC_KEY=<32字节主密钥>
+# AI 渠道：首次可用 env 引导导入（模板见 deploy/deck-loop.env.example），之后在「设置→模型渠道」管理
 ```
 
 生成随机串：`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
@@ -79,9 +87,42 @@ curl -s https://api.<你的域名>/api/auth/account/profile
 ## 运维要点
 
 - **更新版本**：本地 `npm run build` → 打包 `dist/ + package.json + pnpm-lock?`（或整包）上传 → `npm ci --omit=dev` → `pm2 restart deck-loop-core`
-- **备份**：`mongodump --db deck_loop` + `/www/wwwroot/deck-loop/data/assets/` 目录（素材文件不在库里）
+- **备份**：`pg_dump -U deck_loop -h 127.0.0.1 deck_loop | gzip > deck_loop-$(date +%F).sql.gz` + `/www/wwwroot/deck-loop/data/assets/` 目录（素材文件不在库里）
 - **日志**：`pm2 logs deck-loop-core`（宝塔 Node 项目界面可看）
 - **单实例假设**：会话撤销表/网关排队/登录失败计数在内存——只跑一个实例；多实例前需引 Redis（代码已注释演进点）
+
+## PostgreSQL 切换 runbook（ADR-016，一次性；破坏性步骤均需人工确认）
+
+目标：线上**零停机准备 + 一次重启切换**；Mongo 数据全程只读不动。
+
+```bash
+# A. 准备（应用仍跑在 Mongo 上，无影响）
+#   1. 装 PostgreSQL + 建库建用户（见 §1）
+#   2. /www/wwwroot/deck-loop/.env 追加 DATABASE_URL（MONGODB_URI 暂留，供迁移脚本读源）
+printf '\nDATABASE_URL=postgresql://deck_loop:<密码>@127.0.0.1:5432/deck_loop\n' >> /www/wwwroot/deck-loop/.env
+#   3. 新构建的部署包解到【暂存目录】（不动线上目录）
+mkdir -p /www/wwwroot/deck-loop-staging && tar -xzf /tmp/deck-loop-deploy/<新包>.tgz -C /www/wwwroot/deck-loop-staging
+
+# B. 建表 + 干跑（只读 Mongo，不写 PG）
+cd /www/wwwroot/deck-loop && node server-node/dist/scripts/init-schema.js          # 目标库非空会拒绝
+node server-node/dist/scripts/migrate-mongo-to-pg.js --dry-run                      # 逐表行数/样本/丢弃键
+
+# C. 迁移 + 校验（幂等，可重跑追平切换窗口内的新写入）
+node server-node/dist/scripts/migrate-mongo-to-pg.js                               # 聚合不一致退出码 1
+
+# D. 切换（一次重启，秒级中断）——需确认后执行
+#   暂存包替换线上目录（同 deploy.sh 解包：--no-same-owner + chown www）
+#   → su -s /bin/bash www -c 'cd /www/wwwroot/deck-loop && nohup node server-node/dist/main.js >> /www/wwwlogs/deck-loop-cd.log 2>&1 &'
+curl -s -X POST https://api.deckloop.tonyxyz.cn/api/auth/account/login \
+  -H 'Content-Type: application/json' -d '{"email":"health@check","password":"x"}'
+#   期望 BIZ_AUTH_CREDENTIALS（证明 PG 往返）；再用真实账号登录核对创作物/版本/渠道俱在
+
+# E. 收尾（观察 1-2 天后，单独授权）
+#   合并分支到 main（CD 接管）→ .env 移除 MONGODB_URI → 面板停 mongod → 回收 mongodb 依赖
+```
+
+**回滚**：D 步失败 → 线上目录换回旧包（旧包只认 `MONGODB_URI`）→ 重启即回 Mongo；Mongo 数据未动。
+（切换后新应用写入 PG 的数据不会回灌 Mongo——测试环境可接受，切换后请尽快验证。）
 
 ## 导出渲染（ADR-015：客户端渲染，2026-10-20 起）
 

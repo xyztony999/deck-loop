@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   AssetController,
   AssetDictController,
@@ -27,12 +27,9 @@ import {
 } from './asset.oper-resolver';
 import { AssetStorageService } from './asset.storage';
 import { AssetFilesController } from './asset.files.controller';
-import { Asset, AssetSchema } from './schemas/asset.schema';
-import { BrandKit, BrandKitSchema } from './schemas/brand-kit.schema';
-import {
-  PromptTemplate,
-  PromptTemplateSchema,
-} from './schemas/prompt-template.schema';
+import { Asset } from './schemas/asset.schema';
+import { BrandKit } from './schemas/brand-kit.schema';
+import { PromptTemplate } from './schemas/prompt-template.schema';
 
 /**
  * asset 域模块（S-01 素材品牌 + S-02 话术；api-assets.md 三聚合根）。
@@ -42,13 +39,7 @@ import {
  * 供 version/generation/deliver/deck/adjustment 域进程内注入（域间无 HTTP 回环）。
  */
 @Module({
-  imports: [
-    MongooseModule.forFeature([
-      { name: Asset.name, schema: AssetSchema },
-      { name: BrandKit.name, schema: BrandKitSchema },
-      { name: PromptTemplate.name, schema: PromptTemplateSchema },
-    ]),
-  ],
+  imports: [TypeOrmModule.forFeature([Asset, BrandKit, PromptTemplate])],
   controllers: [
     AssetController,
     BrandKitController,

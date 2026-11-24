@@ -13,6 +13,7 @@ import {
   TestContext,
   archiveVersion,
   awaitTaskTerminal,
+  awaitUntil,
   createDeck,
   okData,
   bizFail,
@@ -323,6 +324,19 @@ describe('deck 域状态机（DeckManageFlowTest 对齐）', () => {
       '发起生成',
     );
 
+    // 同步等待任务进入 RUNNING（MOCK 适配器 300-800ms 窗口）再归档——
+    // 消除「提交后立即归档」与网关 QUEUED→RUNNING 推进之间的竞态（pg-mem 同步执行尤甚）
+    await awaitUntil(
+      async () => {
+        const rows = await ctx.dataSource().query(
+          'SELECT task_status FROM dl_generation_task WHERE task_id = $1',
+          [submit.taskId],
+        );
+        return rows[0]?.task_status === 'RUNNING';
+      },
+      10_000,
+      '任务进入 RUNNING',
+    );
     bizFail(
       await postJson(ctx, session, '/deck/deck/archive', { deckId }),
       'BIZ_DECK_TASK_RUNNING',

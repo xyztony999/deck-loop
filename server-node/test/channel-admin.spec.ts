@@ -42,7 +42,7 @@ describe('渠道管理端（/channel/admin/*）', () => {
       },
     ]);
     ctx = await TestContext.create();
-    await ctx.connection().collection('dl_channel').deleteMany({});
+    await ctx.dataSource().query('DELETE FROM dl_channel');
     await ctx.get(GatewayRuntimeStore).bootstrapOnce();
     session = await ctx.newSession('admin');
   });
@@ -107,8 +107,11 @@ describe('渠道管理端（/channel/admin/*）', () => {
     expect(options.some((o) => o.channelCode === 'ZHIPU')).toBe(true);
 
     // 密文落库：明文不出现在 dl_channel
-    const conn = ctx.connection();
-    const doc = await conn.collection('dl_channel').findOne({ channel_code: 'ZHIPU' });
+    const rows = await ctx.dataSource().query(
+      'SELECT * FROM dl_channel WHERE channel_code = $1',
+      ['ZHIPU'],
+    );
+    const doc = rows[0] ?? null;
     expect(String(doc?.api_key_cipher ?? '')).toMatch(/^v1\./);
     expect(JSON.stringify(doc)).not.toContain(TEST_ZHIPU_PLAIN_KEY);
   });

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ClientSession } from 'mongoose';
+import type { TxSession } from '../common/persistence';
 import { BizException } from '../common/exceptions';
 import { DeckStatus } from '../common/enums';
 import {
@@ -65,7 +65,7 @@ export class DeckDomainService {
   async onFirstVersionCreated(
     deckId: string,
     userId: string,
-    session?: ClientSession,
+    session?: TxSession,
   ): Promise<void> {
     const deck = await this.loadOwned(deckId, userId);
     if (deck.deck_status === DeckStatus.ITERATING) {
@@ -121,7 +121,7 @@ export class DeckDomainService {
     versionId: string,
     branchName: string | undefined,
     userId: string,
-    session?: ClientSession,
+    session?: TxSession,
   ): Promise<void> {
     if (isBlank(versionId)) {
       throw new BizException(DECK_NOT_FOUND, '版本ID不能为空');
@@ -176,7 +176,7 @@ export class DeckDomainService {
     deckId: string,
     outline: Record<string, unknown>,
     userId: string,
-    session?: ClientSession,
+    session?: TxSession,
   ): Promise<void> {
     const updated = await this.deckRepository.updateDraftOutline(
       deckId,
@@ -220,7 +220,7 @@ export class DeckDomainService {
   /* ------------------------------------------------------------------ */
 
   /** 属主加载（user_id 隔离 + 未删除；失败统一 NOT_FOUND） */
-  private async loadOwned(deckId: string, userId: string, session?: ClientSession): Promise<DeckDocument> {
+  private async loadOwned(deckId: string, userId: string, session?: TxSession): Promise<DeckDocument> {
     if (isBlank(deckId)) {
       throw new BizException(DECK_NOT_FOUND, 'deckId不能为空');
     }

@@ -243,10 +243,9 @@ describe('platform 域账号与同步（PlatformAuthSyncTest 对齐）', () => {
     const terminal = await awaitTaskTerminal(ctx, session, taskId, AWAIT_MS);
     expect(terminal.taskStatus).toBe('SUCCEEDED');
 
-    const record = await ctx
-      .connection()
-      .collection('dl_usage_record')
-      .findOne({ task_id: taskId });
+    const record = (
+      await ctx.dataSource().query('SELECT * FROM dl_usage_record WHERE task_id = $1', [taskId])
+    )[0] ?? null;
     expect(record).not.toBeNull();
     expect(record!.user_id).toBe(session.userId);
     expect(record!.channel_code).toBe('MOCK');

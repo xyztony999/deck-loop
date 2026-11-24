@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AssetModule } from '../asset/asset.module';
 import { DeckModule } from '../deck/deck.module';
 import { VersionModule } from '../version/version.module';
@@ -15,7 +15,7 @@ import { DeliverDictService } from './deliver.dict-service';
 import { ExportController } from './deliver.controller';
 import { PresentController } from './deliver.present.controller';
 import { DeliverDictController } from './deliver.dict.controller';
-import { EXPORT_TASK_MODEL, ExportTaskSchema } from './schemas/dl_export_task.schema';
+import { ExportTask } from './schemas/dl_export_task.schema';
 
 /**
  * deliver 域模块（C-06 导出交付 + S-03 演示放映，api-delivery.md 9 端点）。
@@ -39,7 +39,7 @@ import { EXPORT_TASK_MODEL, ExportTaskSchema } from './schemas/dl_export_task.sc
  */
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: EXPORT_TASK_MODEL, schema: ExportTaskSchema }]),
+    TypeOrmModule.forFeature([ExportTask]),
     DeckModule,
     VersionModule,
     AssetModule,

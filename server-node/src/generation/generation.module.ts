@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ChannelModule } from '../channel/channel.module';
 import { AssetModule } from '../asset/asset.module';
 import { DeckModule } from '../deck/deck.module';
@@ -18,10 +18,7 @@ import { GenerationQueryRepository } from './generation.query.repository';
 import { GenerationTaskRepository } from './generation.repository';
 import { GenerationDictService } from './generation.dict-service';
 import { GenerationTaskService } from './generation.service';
-import {
-  GENERATION_TASK_MODEL,
-  GenerationTaskSchema,
-} from './schemas/dl_generation_task.schema';
+import { GenerationTask } from './schemas/dl_generation_task.schema';
 
 /**
  * generation 域模块（C-02 初稿生成，api-generation.md 9 端点）。
@@ -47,9 +44,7 @@ import {
  */
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: GENERATION_TASK_MODEL, schema: GenerationTaskSchema },
-    ]),
+    TypeOrmModule.forFeature([GenerationTask]),
     AssetModule,
     DeckModule,
     ChannelModule,

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AccountStatus, getAccountStatusLabel } from '../common/enums';
 import { BizException } from '../common/exceptions';
+import { isDuplicateKeyError } from '../common/persistence';
 import { nextId } from '../common/utils/snowflake';
 import { Account } from './schemas/account.schema';
 import { AccountRepository } from './account.repository';
@@ -69,7 +70,7 @@ export class AccountService {
     try {
       await this.accountRepository.insert(account);
     } catch (error) {
-      // INV-24 唯一索引兜底（并发注册撞 uk_email，Mongo code=11000）
+      // INV-24 唯一索引兜底（并发注册撞 uk_email，PG 23505）
       if (isDuplicateKeyError(error)) {
         throw new BizException(AUTH_EMAIL_EXISTS, AUTH_EMAIL_EXISTS_MSG);
       }
@@ -160,7 +161,7 @@ export class AccountService {
     vo.nickname = nickname;
     vo.accountStatus = account.account_status;
     vo.accountStatusName = getAccountStatusLabel(account.account_status);
-    vo.lastLoginAt = formatLocalDateTime(account.last_login_at);
+    vo.lastLoginAt = formatLocalDateTime(account.last_login_at ?? undefined);
     vo.refreshedToken = this.sessionTokenService.refreshIfNeeded(headerToken);
     return vo;
   }
@@ -190,16 +191,6 @@ function validateRegister(ao: AccountRegisterAO): { email: string; nickname: str
     throw new BizException(AUTH_CREDENTIALS, '邮箱/昵称超长');
   }
   return { email, nickname, password };
-}
-
-/** Mongo 唯一键冲突（code=11000）判定 */
-function isDuplicateKeyError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === 11000
-  );
 }
 
 function isBlank(value: string | undefined): boolean {

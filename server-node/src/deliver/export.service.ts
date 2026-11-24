@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/mongoose';
-import type { Connection } from 'mongoose';
+import { InjectDataSource } from '@nestjs/typeorm';
+import type { DataSource } from 'typeorm';
 import { ExportFormat, ExportStatus } from '../common/enums';
 import { BizException } from '../common/exceptions';
 import { PageResult } from '../common/result';
@@ -67,7 +67,7 @@ export class ExportService {
     private readonly artifactStorage: ExportArtifactStorageService,
     private readonly downloadTicketService: ExportDownloadTicketService,
     private readonly eventPublisher: ExportEventPublisher,
-    @InjectConnection() private readonly connection: Connection,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   // ------------------------------------------------------------------
@@ -120,7 +120,7 @@ export class ExportService {
     task.data_version = 0;
     task.delete_sign = DeleteSign.NOT_DELETED;
     // EX 取号 MAX+1 须在事务内（与插入同事务收窄并发窗口，deck 域同模式）
-    await this.connection.transaction(async (session) => {
+    await this.dataSource.transaction(async (session) => {
       const prefix = ExportService.todayCodePrefix();
       task.export_id = nextId();
       task.export_code = ExportService.buildNextExportCode(

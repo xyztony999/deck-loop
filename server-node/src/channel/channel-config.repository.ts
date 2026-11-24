@@ -1,34 +1,33 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import type { Model } from 'mongoose';
-
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { ChannelConfig, type ChannelConfigDocument } from './schemas/channel-config.schema';
 
 /**
- * 渠道配置仓储（dl_channel；渠道管理端，channel-admin-2026-10-23 §2）。
+ * 渠道配置仓储（dl_channel；渠道管理端，channel-admin-2026-10-23 §2；ADR-016 TypeORM）。
  * 渠道量级为个位数，listAll 全量返回（无分页）。
  */
 @Injectable()
 export class ChannelConfigRepository {
-  constructor(
-    @InjectModel(ChannelConfig.name)
-    private readonly model: Model<ChannelConfigDocument>,
-  ) {}
+  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
   async findByCode(channelCode: string): Promise<ChannelConfigDocument | null> {
-    return this.model.findOne({ channel_code: channelCode }).exec();
+    return this.dataSource.getRepository(ChannelConfig).findOne({ where: { channel_code: channelCode } });
   }
 
   async listAll(): Promise<ChannelConfigDocument[]> {
-    return this.model.find().sort({ priority: -1, channel_code: 1 }).exec();
+    return this.dataSource.getRepository(ChannelConfig).find({ order: { priority: 'DESC', channel_code: 'ASC' } });
   }
 
   async countAll(): Promise<number> {
-    return this.model.countDocuments();
+    return this.dataSource.getRepository(ChannelConfig).count();
   }
 
   async insert(doc: Partial<ChannelConfig>): Promise<ChannelConfigDocument> {
-    return this.model.create(doc as ChannelConfig);
+    const repo = this.dataSource.getRepository(ChannelConfig);
+    const entity = repo.create(doc as ChannelConfig);
+    await repo.insert(entity);
+    return entity;
   }
 
   async updateByCode(
@@ -36,14 +35,12 @@ export class ChannelConfigRepository {
     operator: string,
     patch: Record<string, unknown>,
   ): Promise<void> {
-    await this.model
-      .updateOne(
-        { channel_code: channelCode },
-        {
-          $set: { ...patch, updated_by: operator, updated_time: new Date() },
-          $inc: { data_version: 1 },
-        },
-      )
-      .exec();
+    await this.dataSource
+      .getRepository(ChannelConfig)
+      .createQueryBuilder()
+      .update(ChannelConfig)
+      .set({ ...patch, updated_by: operator, updated_time: new Date(), data_version: () => 'data_version + 1' })
+      .where('channel_code = :channelCode', { channelCode })
+      .execute();
   }
 }

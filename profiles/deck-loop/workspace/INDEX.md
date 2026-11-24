@@ -1,6 +1,7 @@
 ---
 # deck-loop 工作区索引（schema 见 engine/design/engine-abstract/07 §2.5）
 pipeline:
+  - { id: psql-migration-20261124, title: 增量：持久层 MongoDB→PostgreSQL（TypeORM，ADR-016）, path: 00-architecture/ADR-016-persistence-mongo-to-psql.md, status: in-progress, note: D1 完成（ADR-016 + AA v1.3 注记，BA/FL 零变更）；D2 完成（prd-persistence-migration v1.0：NFR 内存/共实例/原生事务 + DM 迁移 + 契约零变化声明）；D3 完成（api-persistence-migration v1.0：11 表字段映射/12 仓储规约/聚合→SQL 对照/单事务方案/迁移脚本规约 + 06 规约 v1.2 §7 增补）；D4 跳过（API 不变→客户端零变化）；Gate1/代码/验证门待执行；部署切换 Gate 停下等用户授权 }
   - { id: functional-audit-20261020, title: 功能实现核查, path: 05-reports/functional-audit-2026-10-20.md, status: complete, note: 功能验收 FAIL：真实导出/调整上下文与作用域/默认产物ID/品牌注入/PPTX确认/同步闭环与游标/图片分批存在缺口；构建与70测试通过；保留历史Gate确认记录 }
   - { id: export-render-impl-20261020, title: 增量：ADR-015 实施完成（渲染下沉客户端）, status: complete, note: 服务端删 ContentExportRenderer/渲染网关/playwright 依赖，新增 export/upload（multipart 魔数/50MB/属主/QUEUED）+ export/fail，状态机去 RENDERING 流转；客户端 export-render 隐藏渲染窗（服务端模板平移）+ Tauri 原生命令（Windows WebView2 PrintToPdf/CapturePreview）+ pptxgenjs 三格式 + 进度/失败上报链；后端 13 套件 89 用例 + 客户端三绿 + cargo check 0 错；桌面端三格式手工冒烟待用户执行 }
   - { id: export-render-redirect-20261020, title: D0 重定向：导出渲染下沉客户端（ADR-015）, path: 05-reports/D0-export-render-redirect-2026-10-20.md, status: complete, note: 云端渲染→客户端渲染（Tauri 插件+pptxgenjs，所见即所得）；云端台账+产物回传；服务端渲染器彻底移除。契约变更 api-delivery v1.3（+export/upload +fail，状态机去 RENDERING）+ prd v1.2 + delivery PageSpec v1.1；BA/AA/FL 零变更。实施待 /pipeline }

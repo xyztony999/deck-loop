@@ -15,12 +15,11 @@
  * 事务：仅多文档编排用事务（brandkit 默认切换 / logo 绑定联动计数），单文档写
  * 依赖 Mongo 单文档原子性（对齐 manifest「跨文档编排用事务」口径）。
  */
-import type { ClientSession } from 'mongoose';
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { InjectConnection } from '@nestjs/mongoose';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { createHash } from 'node:crypto';
-import { Connection } from 'mongoose';
+import type { DataSource } from 'typeorm';
 import {
   AssetStatus,
   AssetType,
@@ -375,7 +374,7 @@ export class BrandKitService {
     private readonly storage: AssetStorageService,
     private readonly eventEmitter: EventEmitter2,
     private readonly operResolver: BrandKitOperResolver,
-    @InjectConnection() private readonly connection: Connection,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   /** #8 规范分页（keyword like；默认规范置顶） */
@@ -585,18 +584,9 @@ export class BrandKitService {
     } satisfies BrandKitListVO;
   }
 
-  /** 多文档事务封装（replica set session；提交后才返回发布事件，NR-07） */
+  /** 多文档事务封装（PG 原生事务；提交后才返回发布事件，NR-07；ADR-016） */
   private async runInTransaction<T>(fn: (session: MongoSession) => Promise<T>): Promise<T> {
-    const session = await this.connection.startSession();
-    try {
-      let result: T | undefined;
-      await session.withTransaction(async () => {
-        result = await fn(session);
-      });
-      return result as T;
-    } finally {
-      await session.endSession();
-    }
+    return this.dataSource.transaction(async (session) => fn(session));
   }
 
   private publishChanged(brandKitId: string, op: string): void {
@@ -784,7 +774,7 @@ export class AssetDomainService {
     userId: string,
     assetIds: string[],
     delta: number,
-    session?: ClientSession,
+    session?: MongoSession,
   ): Promise<void> {
     if (!notBlank(userId)) {
       throw new Error('引用计数回调缺少 userId（ADR-005 隔离字段）');

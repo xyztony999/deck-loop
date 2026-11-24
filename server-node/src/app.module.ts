@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { buildTypeOrmOptions } from './common/typeorm-config';
 import { AdjustmentModule } from './adjustment/adjustment.module';
 import { AssetModule } from './asset/asset.module';
 import { ChannelModule } from './channel/channel.module';
@@ -13,12 +14,11 @@ import { AuthGuard } from './common/guards/auth.guard';
 import { PlatformModule } from './platform/platform.module';
 import { VersionModule } from './version/version.module';
 
-/** env 直读（不引 config 包）；默认本地 deck_loop 库 */
-const DEFAULT_MONGODB_URI = 'mongodb://127.0.0.1:27017/deck_loop';
-
 @Module({
   imports: [
-    MongooseModule.forRoot(process.env.MONGODB_URI ?? DEFAULT_MONGODB_URI),
+    // PostgreSQL（TypeORM，ADR-016）：env DATABASE_URL 直读，默认本地 deck_loop 库；
+    // 与 UniGate 共实例不同 database；synchronize=false（schema 由迁移脚本/DDL 管理）
+    TypeOrmModule.forRoot(buildTypeOrmOptions()),
     // 进程内事件（EventEmitter2，事件名=契约 businessType，事务提交后发布）
     EventEmitterModule.forRoot(),
     // 业务域模块（T01' 占位挂载；域代理在此填充 controller/service/repository/schema——

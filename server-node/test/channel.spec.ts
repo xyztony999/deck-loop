@@ -163,19 +163,15 @@ describe('channel 域偏好与路由（ChannelPreferenceResolveTest 对齐）', 
     expect(defaultHit.source).toBe('DEFAULT');
 
     // 档位渠道下线（直改 preference_map 模拟保存后渠道被停用）→ 降级到默认
-    await ctx
-      .connection()
-      .collection('dl_channel_preference')
-      .updateOne(
-        { user_id: session.userId },
-        {
-          $set: {
-            preference_map: {
-              FULL_GENERATE: { channelCode: 'MOCK-DISABLED', modelCode: 'MOCK-OFF-1' },
-            },
-          },
-        },
-      );
+    await ctx.dataSource().query(
+      `UPDATE dl_channel_preference SET preference_map = $1::jsonb WHERE user_id = $2`,
+      [
+        JSON.stringify({
+          FULL_GENERATE: { channelCode: 'MOCK-DISABLED', modelCode: 'MOCK-OFF-1' },
+        }),
+        session.userId,
+      ],
+    );
     const degraded = await service.resolve('FULL_GENERATE', session.userId);
     expect(degraded.channelCode).toBe('MOCK');
     expect(degraded.modelCode).toBe('MOCK-LITE');

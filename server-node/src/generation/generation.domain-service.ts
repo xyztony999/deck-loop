@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/mongoose';
-import type { Connection } from 'mongoose';
+import { InjectDataSource } from '@nestjs/typeorm';
+import type { DataSource } from 'typeorm';
 import { DeleteSign, TaskStatus, TaskType, type TaskTypeCode } from '../common/enums';
 import { BizException } from '../common/exceptions';
 import { nextId } from '../common/utils/snowflake';
@@ -50,7 +50,7 @@ export class GenerationTaskDomainService {
     private readonly gatewayTaskService: GatewayTaskService,
     private readonly taskRepository: GenerationTaskRepository,
     private readonly eventPublisher: GenerationEventPublisher,
-    @InjectConnection() private readonly connection: Connection,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -95,7 +95,7 @@ export class GenerationTaskDomainService {
     task.delete_sign = DeleteSign.NOT_DELETED;
 
     // 3. 事务{INV-8 互斥 + GT 取号 + insert(QUEUED)}
-    await this.connection.transaction(async (session) => {
+    await this.dataSource.transaction(async (session) => {
       // INV-8：同 deck 同时最多 1 个非终态任务（deck_id+状态条件事务内存在性校验）
       const activeCount = await this.taskRepository.countActiveTasks(
         task.deck_id,

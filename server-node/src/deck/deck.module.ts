@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { DeckController } from './deck.controller';
 import { DeckDictController } from './deck.dict.controller';
 import { DeckDictService } from './deck.dict-service';
@@ -9,7 +9,7 @@ import { DeckEventPublisher } from './deck.events';
 import { DeckRepository } from './deck.repository';
 import { DeckSelectController } from './deck.select.controller';
 import { DeckStatsRepository } from './deck.stats.repository';
-import { DECK_MODEL, DeckSchema } from './schemas/dl_deck.schema';
+import { Deck } from './schemas/dl_deck.schema';
 
 /**
  * deck 域模块（C-01 创作物管理 + C-05 定稿，api-deck.md 10 端点）。
@@ -25,7 +25,7 @@ import { DECK_MODEL, DeckSchema } from './schemas/dl_deck.schema';
  * deck 域零出站：不 import 任何他域 Service（统计只读直查 collection，见 stats.repository）。
  */
 @Module({
-  imports: [MongooseModule.forFeature([{ name: DECK_MODEL, schema: DeckSchema }])],
+  imports: [TypeOrmModule.forFeature([Deck])],
   controllers: [DeckController, DeckDictController, DeckSelectController],
   providers: [
     DeckRepository,

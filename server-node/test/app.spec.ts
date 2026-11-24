@@ -1,11 +1,11 @@
 import { BadRequestException, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { getConnectionToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import type { ArgumentsHost, INestApplicationContext } from '@nestjs/common';
 import { EventEmitter2 } from 'eventemitter2';
-import type { Connection } from 'mongoose';
+import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { createTestDataSource } from './helpers/testing-app';
 import { AUTH_SESSION_EXPIRED, BizException } from '../src/common/exceptions';
 import { BizExceptionFilter } from '../src/common/filters/biz-exception.filter';
 import { AuthGuard, Public } from '../src/common/guards/auth.guard';
@@ -17,22 +17,23 @@ describe('deck-loop v3 skeleton（AppModule 装配）', () => {
   let app: INestApplicationContext;
 
   beforeAll(async () => {
-    // NestJS 10 形态：compile() 返回 TestingModule（即 INestApplicationContext）
-    app = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    // NestJS 10 形态：compile() 返回 TestingModule（即 INestApplicationContext）；
+    // ADR-016：pg-mem 内存库覆盖 DataSource（forRoot 不连真实 PG）
+    const dataSource = await createTestDataSource();
+    app = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(DataSource)
+      .useValue(dataSource)
+      .compile();
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  it('mongodb-memory-server 共享实例已就绪（env 继承）', () => {
-    expect(process.env.MONGODB_URI).toMatch(/^mongodb:\/\//);
-  });
-
-  it('Mongoose 默认连接可达（readyState=1）', async () => {
-    const connection = app.get<Connection>(getConnectionToken());
-    await connection.asPromise();
-    expect(connection.readyState).toBe(1);
+  it('PostgreSQL 数据源已初始化（pg-mem，ADR-016）', () => {
+    const dataSource = app.get<DataSource>(DataSource);
+    expect(dataSource.isInitialized).toBe(true);
+    expect(dataSource.options.type).toBe('postgres');
   });
 
   it('EventEmitter2 全局装配（@OnEvent 事件总线可用）', () => {

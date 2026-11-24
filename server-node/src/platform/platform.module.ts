@@ -1,10 +1,10 @@
 import { Global, Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AUTH_TOKEN_VERIFIER } from '../common/auth-token-verifier';
 import { CHANNEL_REGISTRY_PORT, GATEWAY_RUNTIME_PORT } from '../channel/ports';
-import { Account, AccountSchema } from './schemas/account.schema';
-import { UsageRecord, UsageRecordSchema } from './schemas/usage-record.schema';
-import { GenerationTaskCore, GenerationTaskCoreSchema } from './schemas/generation-task-core.schema';
+import { Account } from './schemas/account.schema';
+import { UsageRecord } from './schemas/usage-record.schema';
+// GenerationTaskCore / ChannelConfigDoc 为只读投影（ADR-016：SQL 直查同物理表，无独立 entity）
 import { AccountRepository } from './account.repository';
 import { UsageRecordRepository } from './usage-record.repository';
 import { GenerationTaskCoreRepository } from './generation-task-core.repository';
@@ -16,7 +16,6 @@ import { SyncController } from './sync.controller';
 import { SyncPullService } from './sync/sync-pull.service';
 import { SYNC_CHANGE_SCANNER } from './sync/sync-change-scanner';
 import { GenerationTaskSyncScanner } from './sync/generation-task-sync.scanner';
-import { ChannelConfigDoc, ChannelConfigSchema } from './gateway/channel-config.doc';
 import { GatewayRuntimeStore } from './gateway/gateway-runtime-store';
 import { ChannelRegistryService } from './gateway/channel-registry.service';
 import { ProviderCredentialsResolver } from './gateway/provider-credentials.resolver';
@@ -49,17 +48,7 @@ import { GatewayStreamController } from './gateway-stream.controller';
  */
 @Global()
 @Module({
-  imports: [
-    MongooseModule.forFeature([
-      { name: Account.name, schema: AccountSchema },
-      { name: UsageRecord.name, schema: UsageRecordSchema },
-      // 同表共治（D1）：模型名 GenerationTaskCore ≠ generation 域全量模型，
-      // 同 collection dl_generation_task、不声明业务索引（索引归 generation 域）
-      { name: GenerationTaskCore.name, schema: GenerationTaskCoreSchema },
-      // dl_channel 只读投影（渠道管理端：网关快照加载；权威 schema 归 channel 域）
-      { name: ChannelConfigDoc.name, schema: ChannelConfigSchema },
-    ]),
-  ],
+  imports: [TypeOrmModule.forFeature([Account, UsageRecord])],
   controllers: [AccountController, SyncController, GatewayStreamController],
   providers: [
     // repositories

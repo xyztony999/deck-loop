@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/mongoose';
-import type { ClientSession, Connection } from 'mongoose';
+import { InjectDataSource } from '@nestjs/typeorm';
+import type { DataSource } from 'typeorm';
+import type { TxSession } from '../common/persistence';
 import { VersionSourceType, type VersionSourceTypeCode } from '../common/enums';
 import { BizException } from '../common/exceptions';
 import { nextId } from '../common/utils/snowflake';
@@ -27,7 +28,7 @@ import { VersionRepository } from './version.repository';
 import type { DeckVersionDocument } from './schemas/dl_deck_version.schema';
 
 /** 锁内复查谓词（fork/分叉留档：seq 分配事务内重检分支名可用；false 抛 BRANCH_EXISTS） */
-export type VersionWriteGuard = (session: ClientSession) => Promise<boolean> | boolean;
+export type VersionWriteGuard = (session: TxSession) => Promise<boolean> | boolean;
 
 /** 版本域只读统计（manifest §10：countByDeck 契约；消费方 deck detail withStats 等） */
 export interface VersionDeckStats {
@@ -60,18 +61,14 @@ export interface VersionDeckStats {
  *    asset.adjustRefCounts(+1)（INV-18 每版本至多一次）；
  * 7. 全部写成功后发 ver_version_created（NR-07：事务提交后发布，失败不发）。
  *
- * ## 两段式事务说明（对 v1 的已知偏离，遗留项）
- * v1 为单事务（insert+movePointer+adjustRefCounts 同 REQUIRED 事务）。v3 落盘的
- * deck 域 `DeckDomainService#movePointer` 其归属守卫读
- * （DeckStatsRepository#countVersionInDeck）**不接受 session**——留档事务内新插入
- * 的版本对它不可见，指针回写必然 NOT_FOUND；且 asset 域
- * `AssetDomainService#adjustRefCounts` 跨域签名亦无 session 形参。故本类按
- * 「事务内 insert → 提交后顺序编排 movePointer/adjustRefCounts」两段式实现：
- * - movePointer/adjustRefCounts 失败 → 版本已提交但指针/计数缺失（异常上抛，
- *   由 generation 回调侧重试语义消化）；
- * - 修复建议（deck/asset 域，非本域文件）：为 countVersionInDeck 与
- *   adjustRefCounts 增加可选 session 并在 movePointer 读路径透传，即可恢复
- *   v1 单事务编排（本类调用点已预留同事务收口位置）。
+ * ## 单事务编排（ADR-016 恢复 v1 口径）
+ * v1 为单事务（insert+movePointer+adjustRefCounts 同 REQUIRED 事务）。v3 Mongo 期
+ * 因 countVersionInDeck/adjustRefCounts 不接受 session 曾两段式偏离；ADR-016 迁
+ * PostgreSQL 后已为 `DeckStatsRepository#countVersionInDeck`、`DeckDomainService#movePointer`、
+ * `AssetDomainService#adjustRefCounts` 增加可选 TxSession（EntityManager）透传，
+ * 本类恢复 **单事务**：seq 分配（FOR UPDATE）→ insertOnly → movePointer → adjustRefCounts
+ * 同 `dataSource.transaction`，任一失败整体回滚（版本/指针/计数原子一致）；
+ * 提交后发 ver_version_created（NR-07）。PG 原生事务无需副本集/keyFile。
  */
 @Injectable()
 export class VersionArchiveService {
@@ -80,7 +77,7 @@ export class VersionArchiveService {
     private readonly deckDomainService: DeckDomainService,
     private readonly assetDomainService: AssetDomainService,
     private readonly eventPublisher: VersionEventPublisher,
-    @InjectConnection() private readonly connection: Connection,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -180,9 +177,9 @@ export class VersionArchiveService {
     const branchName = command.branchName ?? 'main';
 
     let inserted: DeckVersionDocument | undefined;
-    await this.connection.transaction(async (session) => {
-      // seq 分配：事务快照读 MAX+1（v1 SELECT MAX FOR UPDATE 的 Mongo 口径：
-      // 快照读+同事务插入收窄窗口，uk_deck_branch 唯一索引兜底并发取号）
+    await this.dataSource.transaction(async (session) => {
+      // seq 分配：事务内 SELECT MAX … FOR UPDATE 锁 deck 维度（v1 单事务恢复，ADR-016）
+      // + 同事务插入收窄窗口，uk_deck_branch 唯一索引兜底并发取号
       const maxSeq = await this.versionRepository.findMaxVersionSeq(deckId, session);
       const versionSeq = (maxSeq ?? 0) + 1;
       if (writeGuard !== undefined && !(await writeGuard(session))) {
@@ -301,7 +298,7 @@ export class VersionArchiveService {
     deckId: string,
     activeBranchAtLoad: string,
   ): VersionWriteGuard {
-    return async (session: ClientSession): Promise<boolean> => {
+    return async (session: TxSession): Promise<boolean> => {
       const locked = await this.versionRepository.findBranchNames(deckId, session);
       return !locked.includes(branchName) && branchName !== activeBranchAtLoad;
     };

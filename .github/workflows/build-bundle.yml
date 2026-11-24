@@ -1,0 +1,42 @@
+name: Build server bundle
+
+# 仅构建 + 上传服务端部署包产物（**不部署、不触碰服务器**）。
+# 用途：服务器分阶段切换/手工运维（如 ADR-016 PostgreSQL 切换：包先落暂存目录
+# 建表+迁移演练，再切换）。构建/打包步骤与 deploy-baota.yml 逐字一致，保证产物同构
+# （runner 构建——服务器端构建永久禁令：1.6G 内存 OOM 实证）。
+on:
+  workflow_dispatch:
+  push:
+    branches: ['feat/**']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: server-node/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: server-node
+      - run: npm run build
+        working-directory: server-node
+      - run: pnpm install --prod --frozen-lockfile
+        working-directory: server-node
+      - name: 组装部署包（与 deploy-baota.yml 同构：dist + 生产 node_modules + package.json）
+        run: |
+          mkdir -p bundle-out
+          tar -czf "bundle-out/deck-node-${GITHUB_SHA::7}.tgz" \
+            -C server-node dist node_modules package.json
+          ls -la bundle-out
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: deck-loop-server-bundle
+          path: bundle-out/deck-node-*.tgz
+          retention-days: 7

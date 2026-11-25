@@ -1,4 +1,5 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { JSON_COLUMN_TYPE, TIMESTAMP_COLUMN_TYPE } from '../../common/db-column-types';
 
 /**
  * 渠道配置聚合根 entity（dl_channel；渠道管理端，channel-admin-2026-10-23 §2；ADR-016 TypeORM）。
@@ -40,19 +41,19 @@ export class ChannelConfig {
   @Column({ type: 'varchar', default: 'admin' })
   source!: string;
 
-  @Column({ type: 'jsonb', default: () => "'[]'" })
+  @Column({ type: JSON_COLUMN_TYPE, default: () => "'[]'" })
   models!: ChannelConfigModel[];
 
   @Column({ type: 'varchar', nullable: true })
   created_by?: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   created_time?: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
   updated_by?: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   updated_time?: Date | null;
 
   @Column({ type: 'int', default: 0 })

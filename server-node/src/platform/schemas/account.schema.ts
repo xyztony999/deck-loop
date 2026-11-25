@@ -1,4 +1,5 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { TIMESTAMP_COLUMN_TYPE } from '../../common/db-column-types';
 
 /**
  * 账号聚合根 —— dl_account（api-platform §5.3，v1 DDL 列平移；ADR-016 TypeORM entity）。
@@ -33,7 +34,7 @@ export class Account {
   account_status!: string;
 
   /** 最近登录时间 */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   last_login_at?: Date | null;
 
   /* ---------- 统一模板：乐观锁/软删/审计六件套 ---------- */
@@ -50,7 +51,7 @@ export class Account {
   @Column({ type: 'varchar', nullable: true })
   created_name?: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   created_time?: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
@@ -59,6 +60,6 @@ export class Account {
   @Column({ type: 'varchar', nullable: true })
   updated_name?: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   updated_time?: Date | null;
 }

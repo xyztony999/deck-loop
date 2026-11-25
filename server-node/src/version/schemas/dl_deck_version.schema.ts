@@ -1,4 +1,5 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { JSON_COLUMN_TYPE, TIMESTAMP_COLUMN_TYPE } from '../../common/db-column-types';
 
 /**
  * 内容版本聚合根 — dl_deck_version（api-version §5.3，字段=v1 列平移；ADR-016 TypeORM entity）。
@@ -52,11 +53,11 @@ export class DeckVersion {
 
   /** 来源指令/入参快照（整体嵌入 jsonb；含 scope/brand/assetIds/outline 快照） */
   // jsonb 不透明 blob 用 Record<string, any>：TypeORM _QueryDeepPartialEntity 对 unknown 值不可赋值
-  @Column({ type: 'jsonb' })
+  @Column({ type: JSON_COLUMN_TYPE })
   instruction_snapshot!: Record<string, any>;
 
   /** 页面树快照（整体嵌入 jsonb：pages[]→blocks[]，契约见 api-version §4.1） */
-  @Column({ type: 'jsonb' })
+  @Column({ type: JSON_COLUMN_TYPE })
   content!: Record<string, any>;
 
   /** content SHA-256（hex 小写 64 位；对比加速/一致性校验，canonical 序列化） */
@@ -80,7 +81,7 @@ export class DeckVersion {
   created_name?: string | null;
 
   /** 创建时间（审计；VERSION 聚合同步游标派生源） */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   created_time?: Date | null;
 }
 

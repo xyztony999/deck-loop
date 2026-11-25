@@ -1,5 +1,6 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { DeleteSign } from '../../common/enums';
+import { JSON_COLUMN_TYPE, TIMESTAMP_COLUMN_TYPE } from '../../common/db-column-types';
 
 /**
  * 生成任务聚合根（子流程）— dl_generation_task（api-generation §5.3，22 字段与 v1 列
@@ -47,7 +48,7 @@ export class GenerationTask {
 
   /** 入参/指令快照（整体嵌入 jsonb；大纲快照/指令/scope/brandKitId/assetIds/usedTemplateIds/lengthOption） */
   // jsonb 不透明 blob 用 Record<string, any>：TypeORM _QueryDeepPartialEntity 对 unknown 值不可赋值
-  @Column({ type: 'jsonb' })
+  @Column({ type: JSON_COLUMN_TYPE })
   instruction_snapshot!: Record<string, any>;
 
   /** 路由快照：渠道编码（D2，偏好变更不影响在途任务审计） */
@@ -99,7 +100,7 @@ export class GenerationTask {
   created_name?: string | null;
 
   /** 创建时间（审计；列表排序键） */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   created_time?: Date | null;
 
   /** 最后修改人 ID（审计） */
@@ -111,7 +112,7 @@ export class GenerationTask {
   updated_name?: string | null;
 
   /** 最后修改时间（审计；TASK 聚合同步游标派生源，每次写推进） */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   updated_time?: Date | null;
 }
 

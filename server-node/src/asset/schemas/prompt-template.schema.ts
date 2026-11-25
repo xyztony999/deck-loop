@@ -8,6 +8,7 @@
  * - 业务主键 template_id = 表主键（取代 ObjectId，NR-08）
  */
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { TIMESTAMP_COLUMN_TYPE } from '../../common/db-column-types';
 
 @Entity('dl_prompt_template')
 @Index('idx_user_scene', ['user_id', 'template_scene'])
@@ -54,7 +55,7 @@ export class PromptTemplate {
   @Column({ type: 'varchar', nullable: true })
   created_name?: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   created_time?: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
@@ -64,6 +65,6 @@ export class PromptTemplate {
   updated_name?: string | null;
 
   /** 多端同步游标扫描依据 */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   updated_time?: Date | null;
 }

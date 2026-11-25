@@ -1,5 +1,6 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { DeleteSign } from '../../common/enums';
+import { TIMESTAMP_COLUMN_TYPE } from '../../common/db-column-types';
 
 /**
  * 导出任务聚合根 — dl_export_task（api-delivery §5.3，18 字段与 v1 列逐字平移，
@@ -72,7 +73,7 @@ export class ExportTask {
   created_name?: string | null;
 
   /** 创建时间（审计） */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   created_time?: Date | null;
 
   /** 最后修改人 ID（审计，=user_id；系统回调推进时同 user_id） */
@@ -84,7 +85,7 @@ export class ExportTask {
   updated_name?: string | null;
 
   /** 最后修改时间（审计；EXPORT 聚合同步游标派生源，每次写推进） */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   updated_time?: Date | null;
 
   /** 乐观锁版本号（条件更新 +1 推进） */

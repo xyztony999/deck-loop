@@ -13,14 +13,22 @@ import type { EntityManager } from 'typeorm';
 /** 跨聚合事务句柄（TypeORM EntityManager；替代 mongoose ClientSession） */
 export type TxSession = EntityManager;
 
-/** PG 重复键判定（unique_violation=23505；鸭子类型判别，沿 Mongo 11000 口径） */
+/**
+ * 重复键判定（鸭子类型判别，沿 Mongo 11000 口径）：
+ * - PG unique_violation=23505；
+ * - SQLite（ADR-017 本地 MCP）：better-sqlite3 code=SQLITE_CONSTRAINT_UNIQUE/
+ *   SQLITE_CONSTRAINT_PRIMARYKEY，或消息含 "UNIQUE constraint failed"。
+ */
 export function isDuplicateKeyError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === '23505'
-  );
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const code = (error as { code?: unknown }).code;
+  if (code === '23505' || code === 'SQLITE_CONSTRAINT_UNIQUE' || code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+    return true;
+  }
+  const message = (error as { message?: unknown }).message;
+  return typeof message === 'string' && message.includes('UNIQUE constraint failed');
 }
 
 /** 复合游标 tiebreak（F07：含边界毫秒行时同毫秒按业务 id 续传） */

@@ -1,4 +1,5 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { TIMESTAMP_COLUMN_TYPE } from '../../common/db-column-types';
 
 /**
  * 用量计量实体 —— dl_usage_record（api-platform §5.3，日志型只追加；ADR-016 TypeORM entity）。
@@ -45,6 +46,6 @@ export class UsageRecord {
   completion_tokens!: number;
 
   /** 发生时间（写时分配） */
-  @Column({ type: 'timestamptz' })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE })
   occurred_at!: Date;
 }

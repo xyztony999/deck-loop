@@ -1,4 +1,5 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { JSON_COLUMN_TYPE, TIMESTAMP_COLUMN_TYPE } from '../../common/db-column-types';
 
 /**
  * 渠道偏好聚合根 entity（dl_channel_preference，api-channel §5.3；ADR-016 TypeORM）：
@@ -38,7 +39,7 @@ export class ChannelPreference {
   default_model_code?: string | null;
 
   /** 分任务类型档位（键=TaskType code；jsonb 整体嵌入，读取即纯对象） */
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: JSON_COLUMN_TYPE, nullable: true })
   preference_map?: Record<string, PreferenceTier> | null;
 
   /** 乐观锁版本号（+1 平移，06 §7） */
@@ -55,7 +56,7 @@ export class ChannelPreference {
   @Column({ type: 'varchar', nullable: true })
   created_name?: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   created_time?: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
@@ -64,6 +65,6 @@ export class ChannelPreference {
   @Column({ type: 'varchar', nullable: true })
   updated_name?: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   updated_time?: Date | null;
 }

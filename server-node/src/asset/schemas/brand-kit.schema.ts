@@ -8,6 +8,7 @@
  * - 业务主键 brand_kit_id = 表主键（取代 ObjectId，NR-08）
  */
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { JSON_COLUMN_TYPE, TIMESTAMP_COLUMN_TYPE } from '../../common/db-column-types';
 
 /** 色彩值对象（{primary,assistants[]}，整体嵌入 jsonb） */
 export interface BrandKitColors {
@@ -35,11 +36,11 @@ export class BrandKit {
   kit_name!: string;
 
   /** 色彩值对象（嵌入 jsonb） */
-  @Column({ type: 'jsonb' })
+  @Column({ type: JSON_COLUMN_TYPE })
   colors!: BrandKitColors;
 
   /** 字体值对象（嵌入 jsonb，可空；编辑可清空） */
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: JSON_COLUMN_TYPE, nullable: true })
   fonts?: BrandKitFonts | null;
 
   /** logo 素材引用（dl_asset 业务 id；INV-16 启用态守卫；解绑清空） */
@@ -68,7 +69,7 @@ export class BrandKit {
   @Column({ type: 'varchar', nullable: true })
   created_name?: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   created_time?: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
@@ -78,6 +79,6 @@ export class BrandKit {
   updated_name?: string | null;
 
   /** 多端同步游标扫描依据 */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   updated_time?: Date | null;
 }

@@ -11,6 +11,7 @@
  * - file_size bigint（仓储归一 number）
  */
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { TIMESTAMP_COLUMN_TYPE } from '../../common/db-column-types';
 
 @Entity('dl_asset')
 @Index('uk_user_hash', ['user_id', 'file_hash'], { unique: true })
@@ -79,7 +80,7 @@ export class Asset {
   @Column({ type: 'varchar', nullable: true })
   created_name?: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   created_time?: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
@@ -89,6 +90,6 @@ export class Asset {
   updated_name?: string | null;
 
   /** 多端同步游标扫描依据（毫秒精度 + 业务 id 升序） */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   updated_time?: Date | null;
 }

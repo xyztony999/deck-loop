@@ -1,5 +1,6 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { DeleteSign } from '../../common/enums';
+import { JSON_COLUMN_TYPE, TIMESTAMP_COLUMN_TYPE } from '../../common/db-column-types';
 
 /**
  * 创作物聚合根 — dl_deck（api-deck §5.3，22 字段与 v1 列逐字平移；ADR-016 TypeORM entity）。
@@ -49,7 +50,7 @@ export class Deck {
 
   /** 草稿大纲（节点树整体嵌入 jsonb；首个版本生成后转只读） */
   // jsonb 不透明 blob 用 Record<string, any>：TypeORM _QueryDeepPartialEntity 对 unknown 值不可赋值
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: JSON_COLUMN_TYPE, nullable: true })
   draft_outline?: Record<string, any> | null;
 
   /** 默认品牌规范（跨聚合引用，启用态，INV-7） */
@@ -85,7 +86,7 @@ export class Deck {
   created_name?: string | null;
 
   /** 创建时间（审计） */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   created_time?: Date | null;
 
   /** 最后修改人 ID（审计） */
@@ -97,7 +98,7 @@ export class Deck {
   updated_name?: string | null;
 
   /** 最后修改时间（审计；多端同步游标派生源，每次写推进） */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN_TYPE, nullable: true })
   updated_time?: Date | null;
 
   /** 乐观锁版本号（条件更新 filter 携带期望值 + data_version+1 推进） */

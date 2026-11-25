@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   backend:
-    name: 后端（NestJS · jest 89 用例）
+    name: 后端（NestJS · jest 117 用例）
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -32,15 +32,12 @@ jobs:
           cache-dependency-path: server-node/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         # test 脚本已固化 cross-env NODE_OPTIONS=--experimental-vm-modules
-        # + --runInBand --watchman=false（pptxgenjs 动态 import 需要）
+        # + --runInBand --watchman=false
       - run: npm test
 
-  client:
-    name: 客户端（typecheck / build / 行为测试）
+  mcp:
+    name: MCP（SQLite 集成 + headless 三格式冒烟）
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: client
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -50,8 +47,12 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: client/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm build
-      - run: pnpm test
+          cache-dependency-path: |
+            server-node/pnpm-lock.yaml
+            mcp-server/pnpm-lock.yaml
+      # mcp 经 link: 复用 core 产物——先构建 server-node
+      - run: cd server-node && pnpm install --frozen-lockfile && pnpm build
+      - run: cd mcp-server && pnpm install --frozen-lockfile && pnpm build
+      # 导出冒烟用 headless Chromium（launchBrowser 优先系统 Edge，CI 无 Edge 回退 chromium）
+      - run: cd mcp-server && node node_modules/playwright-core/cli.js install --with-deps chromium
+      - run: cd mcp-server && pnpm test

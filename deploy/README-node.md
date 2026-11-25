@@ -82,21 +82,12 @@ curl -s https://api.<你的域名>/api/auth/account/profile
 # 预期 {"status":false,"code":"BIZ_AUTH_SESSION_EXPIRED",...} JSON（HTTP 200）
 ```
 
-客户端本机 `cd client && pnpm dev`（代理已指向该域名）→ 注册开测。
+本地 MCP 开测（ADR-017，推荐形态）：`cd mcp-server && pnpm i && pnpm build && pnpm start`，
+经 ZCode 插件（`plugin/`）或任意 MCP 客户端接入；数据落本机 `~/.deck-loop/`，不依赖本服务端。
+云端服务保留为可选 BYO-key 网关 + 后续可选同步（Phase 4）底座。
 
-## 客户端安装版（Tauri release）构建注意
-
-客户端 API 基址 = `client/src/engine/request.ts` 的 `API_BASE_URL`：**dev 为相对 `/api`（走 vite 代理）；
-安装版页面来自 Tauri 自有源、没有代理**，必须经构建期 env 注入绝对地址，否则登录等请求打在
-`tauri.localhost` 自身源上、永不到达服务端（症状：客户端登录无反应/失败，而服务端日志里没有请求）。
-
-```bash
-# client/.env.production（gitignore，域名不入仓；`pnpm build` / `tauri build` 自动加载，dev 不加载）
-VITE_API_BASE_URL=https://api.<你的域名>/api
-cd client && pnpm tauri build          # 或仅重建 exe：pnpm tauri build --no-bundle
-```
-
-构建产物里应能搜到该绝对地址（`grep -l "api\.<域名>/api" dist/assets/*.js`）。
+> Tauri 桌面客户端已于 ADR-017 移除（git 历史可恢复）；原「安装版 API 基址注入」
+> 注意事项随之作废。
 
 ## 运维要点
 
@@ -138,11 +129,11 @@ curl -s -X POST https://api.deckloop.tonyxyz.cn/api/auth/account/login \
 **回滚**：D 步失败 → 线上目录换回旧包（旧包只认 `MONGODB_URI`）→ 重启即回 Mongo；Mongo 数据未动。
 （切换后新应用写入 PG 的数据不会回灌 Mongo——测试环境可接受，切换后请尽快验证。）
 
-## 导出渲染（ADR-015：客户端渲染，2026-10-20 起）
+## 导出渲染（ADR-015 服务端零渲染依赖；ADR-017 起本地 headless）
 
-导出（PDF/图片/PPTX）渲染在**客户端**执行（Tauri WebView2 原生打印/截图 +
-pptxgenjs），服务器**零渲染依赖**——无需 Chromium、无需安装 CJK 字体、无需 swap
-扩容，1GB 小内存服务器彻底解套。
+导出（PDF/图片/PPTX）渲染在**用户本地**执行（ADR-017：MCP 进程内 playwright-core
+系统 Edge + pptxgenjs；原 Tauri WebView2 路径已随客户端移除），服务器**零渲染依赖**
+——无需 Chromium、无需安装 CJK 字体、无需 swap 扩容，1GB 小内存服务器彻底解套。
 
 服务端仅接收产物回传（`POST /deliver/export/upload`，multipart）：
 

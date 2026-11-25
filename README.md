@@ -1,8 +1,8 @@
-# Deck-Loop — AI 内容创作语言迭代客户端
+# Deck-Loop — agent 驱动演示文稿创作 + Web 管理站
 
-用自然语言驱动 AI 生成演示文稿类内容（多形态抽象，首期演示文稿），并以**语言指令**持续微调：整稿级与定向级（选中某页/文本块/图片元素）调整、版本树自动留档（可对比/回退/分叉）、品牌规范与话术沉淀、定稿导出（PDF/图片，PPTX beta）与内置演示。
+用自然语言驱动 AI 生成演示文稿类内容（多形态抽象，首期演示文稿），并以**语言指令**持续微调：整稿级与定向级（选中某页/文本块/图片元素）调整、版本树自动留档（可对比/回退/分叉）、品牌规范与话术沉淀、定稿导出（PDF/图片，PPTX beta）与演示放映。
 
-**形态**（ADR-017）：**本地优先 MCP**——`mcp-server/` + `plugin/`，coding agent 出推理（消耗 coding plan），deck-loop 本地出确定性状态机（SQLite + 不可变版本树 + 定向不变性 + headless 三格式导出），零 API key、零服务端依赖。云端单服务（NestJS 10 `deck-loop-core` + PostgreSQL/TypeORM）保留为可选 BYO-key 网关 + 后续可选同步底座。Tauri 桌面客户端已移除（git 历史可恢复）。
+**形态**（ADR-018）：**coding agent 创作 + Web 管理站，云端 PG 单源**。AI 产出交 coding agent（ZCode 等，消耗 coding plan）经 MCP 直写；`web/` 管理素材与产出内容（Vue3 + AntdV，浏览器侧预览放映 + 产物下载）；`mcp-server/` 双模式（`DECK_LOOP_MODE=local|remote`，远程与网站同库实时读写，本地 SQLite 离线可选）；`plugin/` ZCode 薄包装。云端单服务（NestJS 10 + PostgreSQL/TypeORM，56 端点）为唯一数据源，**零 AI 网关、零服务端渲染**。Tauri 桌面客户端已移除（git 历史可恢复）。
 
 ## 仓库状态
 
@@ -10,14 +10,15 @@
 
 | 内容 | 路径 |
 |------|------|
-| 本地 MCP server（headless Nest + SQLite，复用四域模块；ADR-017） | `mcp-server/` |
+| Web 管理站（Vue3 + AntdV 4 暗色，素材/Deck/版本树/预览/下载/token；ADR-018） | `web/` |
+| MCP server（28 tools，local/remote 双模式，headless 三格式导出；ADR-017/018） | `mcp-server/` |
 | ZCode 插件薄包装（MCP 配置 + deck-loop skill + /new-deck） | `plugin/` |
-| 云端服务（NestJS + TypeORM/PostgreSQL，8 领域模块，66 HTTP 端点 + SSE） | `server-node/` |
-| 部署产物（Node 部署手册 / Nginx 反代 / systemd / 环境样例） | `deploy/` |
+| 云端服务（NestJS + TypeORM/PostgreSQL，5 域 56 端点，PG 单源；ADR-018） | `server-node/` |
+| 部署产物（Node 部署手册 / Nginx web 静态站 + 反代 / 环境样例 / 迁移脚本） | `deploy/` |
 | 品牌 kit（logo/icon/favicon 等，logoloom 产出） | `assets/brand/` |
-| 设计文档（架构 / 8 PRD / 8 API / 7 PageSpec / Gate 报告） | `profiles/deck-loop/workspace/` |
+| 设计文档（架构 / PRD / API / PageSpec / Gate 报告） | `profiles/deck-loop/workspace/` |
 
-测试：后端 16 套件 / 107 用例（pg-mem）+ MCP 2 套件 / 19 用例（SQLite in-memory + 真实 Edge headless 三格式冒烟）。支持反代部署（Nginx 前缀剥离 + SSE 透传，见 `deploy/README-node.md`）。
+测试：后端 16 套件 / 105 用例（pg-mem）+ MCP 3 套件 / 32 用例（local 含真实 Edge headless 三格式 + remote 真实 HTTP）+ web 行为测试 5/5 与 typecheck/build 三绿。部署见 `deploy/README-node.md`（Nginx web 静态站 + /api 反代；迁移脚本 migrate-web-agent）。
 
 ### 沿革
 
@@ -26,20 +27,26 @@
 | v1（Spring Boot + MySQL 微服务） | 已废弃移除 | 小内存服务器部署 OOM，架构打回 |
 | v3（Node 24 / NestJS + MongoDB） | 已被 ADR-016 修订 | 契约冻结复用 v1 全部端点，前端代码近乎 100% 复用 |
 | v3.1（PostgreSQL/TypeORM，ADR-016） | **当前·云端** | 对外 API 契约零变化、客户端零变化 |
-| v3.2（本地优先 MCP + 薄插件，ADR-017） | **当前** | agent 直写绕开网关，coding plan 原生；Tauri 客户端移除 |
+| v3.2（本地优先 MCP + 薄插件，ADR-017） | 已被 ADR-018 演进 | agent 直写绕开网关，coding plan 原生；Tauri 客户端移除 |
+| v3.3（Web 管理站 + PG 单源 + MCP 远程 + 网关移除，ADR-018） | **当前** | 网站管理 / agent 创作同库实时；56 端点；个人 API token |
 
 ## 本地开发
 
 ```bash
-# 本地 MCP（推荐；Node >= 20，pnpm 10）
-cd server-node && pnpm i && pnpm build   # MCP 复用 core 产物
-cd ../mcp-server && pnpm i && pnpm build && pnpm start   # stdio；数据 ~/.deck-loop/
+# 后端（读 .env，缺省 8080；PG 单源，DATABASE_URL）
+cd server-node && pnpm i && pnpm build && pnpm run start:dev
 
-# 后端（读 .env，缺省 8080；可选 BYO-key 网关 + 同步底座）
-cd server-node && pnpm run start:dev
+# Web 管理站（dev 5173，vite 代理 /api → 后端）
+cd web && pnpm i && pnpm dev
+
+# MCP（Node >= 20，pnpm 10）
+cd mcp-server && pnpm i && pnpm build
+pnpm start                                          # local 模式（缺省）：~/.deck-loop/ SQLite
+DECK_LOOP_MODE=remote DECK_LOOP_API_URL=https://api.<域名>/api \
+  DECK_LOOP_API_TOKEN=dlpat_... pnpm start          # remote：与网站同库（设置页签发 token）
 ```
 
-生产部署见 `deploy/README-node.md`（宝塔 Node 项目 + PostgreSQL + Nginx 前缀剥离与 SSE 透传）。
+生产部署见 `deploy/README-node.md`（宝塔 Node 项目 + PostgreSQL + Nginx web 静态站 + /api 反代；上线先跑 `migrate-web-agent --dry-run`）。
 
 ## 引擎绑定
 

@@ -3,7 +3,7 @@ profile:
   name: deck-loop
   type: business
   title: Deck-Loop — 本地优先 MCP 演示文稿创作（agent 驱动语言迭代）
-  depends: [node-nestjs-mongo]   # vue3-engine 随 Tauri 客户端移除（ADR-017）；node 栈更名 psql 为外部待办
+  depends: [node-nestjs-mongo, vue3-engine]   # vue3-engine 复绑（ADR-018：web/ 纯 Web 管理站，779f3d6 client/ 恢复剥 Tauri；FRONTEND_ROOT=web/）；node 栈更名 psql 为外部待办
 knowledge:
   inject: CLAUDE.md
   sections:

@@ -1,6 +1,8 @@
 # deck-loop 后端部署 — Node/NestJS 版
 
-> v3 技术栈。v1 的 Java 部署说明已随 v1 归档作废；Nginx 反代配置（deploy/nginx-deck-loop.conf）**继续可用**（同为 8080 端口，SSE 段已调优）。
+> v3 技术栈。v1 的 Java 部署说明已随 v1 归档作废；Nginx 配置（deploy/nginx-deck-loop.conf）
+> 自 ADR-018 起含 **web 静态站 + /api 反代**两段（SSE 段已随 AI 网关退役删除）。
+> web 管理站部署见下文「Web 管理站部署（ADR-018）」节。
 
 ## 运行时
 
@@ -9,7 +11,9 @@
 ## 拓扑
 
 ```
-客户端 ──HTTPS 443──> 宝塔 Nginx(/api 反代) ──> deck-loop-core(Node, 18080) ──> PostgreSQL（deck_loop 库；与 UniGate 共实例不同 database）
+浏览器 ──HTTPS 443──> 宝塔 Nginx ┬─ /（web 静态站，SPA 兜底）──> /www/wwwroot/deck-loop-web（dist 静态文件）
+                               └─ /api 反代 ──> deck-loop-core(Node, 18080) ──> PostgreSQL（deck_loop 库；与 UniGate 共实例不同 database）
+coding agent ──MCP 远程模式（X-Api-Token）──> /api（同一反代；ADR-018 §4.2）
 ```
 
 > **ADR-016（2026-11-24）**：持久层已由 MongoDB 迁至 PostgreSQL（TypeORM）。服务器只跑**一个数据库进程**；
@@ -53,9 +57,9 @@ AUTH_TOKEN_SECRET=<随机长串>
 EXPORT_SIGN_SECRET=<随机长串>
 ASSET_URL_SECRET=<随机长串>
 ASSET_STORAGE_DIR=/www/wwwroot/deck-loop/data/assets
-# 渠道主密钥（设置→模型渠道保存的 apiKey 加密落库；openssl rand -hex 32）
-CONFIG_ENC_KEY=<32字节主密钥>
-# AI 渠道：首次可用 env 引导导入（模板见 deploy/deck-loop.env.example），之后在「设置→模型渠道」管理
+# ADR-018：AI 网关/渠道域退役——CONFIG_ENC_KEY / GATEWAY_CHANNELS / GLM_API_KEY
+# 不再消费（旧 .env 中残留可删）；AI 产出唯一路径 = coding agent 经 MCP 直写。
+# 可选：AGENT_CONTENT_MAX_MB（agent-create content 上限，缺省 2）
 ```
 
 生成随机串：`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
@@ -73,7 +77,9 @@ CONFIG_ENC_KEY=<32字节主密钥>
 
 ## 5. Nginx（复用既有配置）
 
-此前配置的 `api.<你的域名>` 站点 + `deploy/nginx-deck-loop.conf` 的 `location /api/ {...}` **原样沿用**（8080 不变、SSE 段已含 `proxy_buffering off`）。若当时未配：站点 → 配置文件粘贴该文件内容。
+`deploy/nginx-deck-loop.conf` 的 `location /api/ {...}` 反代规则**沿用**（18080 不变）。
+ADR-018 变更：SSE 嵌套段（`/api/gw/task/stream`）已删除——旧站点配置里若仍有该段请移除；
+推荐改用 conf 内 A 段「web 静态站」单站同源拓扑（web + /api 同一域名）。
 
 ## 6. 验证
 
@@ -89,12 +95,53 @@ curl -s https://api.<你的域名>/api/auth/account/profile
 > Tauri 桌面客户端已于 ADR-017 移除（git 历史可恢复）；原「安装版 API 基址注入」
 > 注意事项随之作废。
 
+## Web 管理站部署（ADR-018，web-mgmt-20261125）
+
+web/ 为纯 Web 管理站（Vue3 + AntdV4，779f3d6 client/ 恢复剥 Tauri）：四功能组
+（素材/Deck/版本树/预览放映+导出下载）直读直写云端 PG；**服务端零渲染**——预览/放映
+在浏览器侧经共享 render-template 渲染，导出由 MCP 本地 headless 完成后回传。
+
+### 构建
+
+```bash
+cd web
+pnpm install          # pnpm 10
+pnpm typecheck && pnpm test && pnpm build   # 三绿后产物在 web/dist/
+```
+
+- **同源部署（推荐）**：无需任何 env——API 基址缺省相对 `/api`，由 Nginx 反代。
+- **跨源部署**：构建前写 `web/.env.production`（gitignore）：
+  `VITE_API_BASE_URL=https://api.<你的域名>/api`，再 `pnpm build`。
+- 渲染模板经 TS 路径别名 `@render` 共享 `mcp-server/src/render/render-template.ts`
+  （纯 TS 零 node 依赖）——构建机需保留仓库相对目录结构（web/ 与 mcp-server/ 同级）。
+
+### 上传与 Nginx
+
+```bash
+# 产物上传（静态文件，无 node_modules/进程）
+tar -czf deck-web.tgz -C web/dist .
+# 服务器：mkdir -p /www/wwwroot/deck-loop-web && tar -xzf deck-web.tgz -C /www/wwwroot/deck-loop-web
+```
+
+宝塔添加**纯静态站点**（根目录 /www/wwwroot/deck-loop-web），配置文件采用
+`deploy/nginx-deck-loop.conf` A 段：SPA history 兜底（`try_files ... /index.html`）
++ `/assets/` 长缓存 + `location /api/` 反代 18080（`client_max_body_size 60m` 覆盖
+素材上传/产物回传）。SSL 由宝塔签发。
+
+### 验证
+
+1. 浏览器打开站点 → 未登录跳 `/auth`；注册/登录 → `/deck` 列表。
+2. 设置 → API token → 签发（明文仅显示一次）→ 配置到 MCP 远程模式
+   （`DECK_LOOP_MODE=remote` + `DECK_LOOP_API_URL=https://<域名>/api` + `DECK_LOOP_API_TOKEN`）。
+3. 深链刷新（如 `/deck/<id>`、`/assets?tab=prompt`）不回 404（SPA 兜底生效）。
+
 ## 运维要点
 
 - **更新版本**：本地 `npm run build` → 打包 `dist/ + package.json + pnpm-lock?`（或整包）上传 → `npm ci --omit=dev` → `pm2 restart deck-loop-core`
 - **备份**：`pg_dump -U deck_loop -h 127.0.0.1 deck_loop | gzip > deck_loop-$(date +%F).sql.gz` + `/www/wwwroot/deck-loop/data/assets/` 目录（素材文件不在库里）
 - **日志**：`pm2 logs deck-loop-core`（宝塔 Node 项目界面可看）
-- **单实例假设**：会话撤销表/网关排队/登录失败计数在内存——只跑一个实例；多实例前需引 Redis（代码已注释演进点）
+- **单实例假设**：会话撤销表/登录失败计数在内存——只跑一个实例；多实例前需引 Redis（代码已注释演进点）。个人 API token 校验每次查库（吊销即时生效，无内存撤销表，ADR-018）
+- **web 更新**：本地 `pnpm build` → dist/ 打包上传覆盖 /www/wwwroot/deck-loop-web（纯静态，无需重启任何进程）
 
 ## PostgreSQL 切换 runbook（ADR-016，一次性；破坏性步骤均需人工确认）
 
@@ -140,6 +187,6 @@ curl -s -X POST https://api.deckloop.tonyxyz.cn/api/auth/account/login \
 - **EXPORT_ARTIFACT_MAX_MB**：产物大小上限（默认 50MB；multer limits 与 Service
   双重校验，超限拒绝 BIZ_EXPORT_UPLOAD_INVALID）。
 - 产物落盘 `EXPORT_ARTIFACT_DIR`（默认 `./data/exports`），魔数白名单校验
-  （PDF=`%PDF-`、PPTX/图片包 ZIP=`PK`）。
-- 桌面端为 Windows 先行（WebView2 PrintToPdf/CapturePreview），其余平台渲染
-  命令返回「暂不支持」（后续增量）。
+  （PDF=`%PDF-`、PPTX/图片包 ZIP=`PK`）。
+- 网站侧**无导出发起入口**（ADR-018）：导出记录页仅下载已回传产物；预览/放映
+  为浏览器侧渲染（web/src/render 共享 render-template），不请求任何渲染端点。

@@ -4,9 +4,7 @@ target/
 *.pyc
 .DS_Store
 
-# 桌面端构建产物
-client/dist/
-client/src-tauri/target/
+# web 构建产物由上方通用 dist/ 覆盖（Tauri 客户端已移除，ADR-017/018；client/ 条目作废）
 
 # 本地 AI 工具状态
 .zcode/

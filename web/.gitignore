@@ -1,0 +1,9 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.local
+.env
+.env.*
+
+# 注：src/components.d.ts（unplugin-vue-components 生成的全局组件类型）入仓——
+#  fresh clone 先 typecheck 后 build 时 vue-tsc 依赖它解析 a-* 全局组件。

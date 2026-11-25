@@ -1,0 +1,262 @@
+{
+  "_generated": {
+    "version": 3,
+    "note": "本文件由 engine-gui 文档中心根据项目架构自动生成，可手工编辑（编辑后原样生效）；删除本文件后下次访问将按最新架构重新生成。",
+    "generatedAt": "2026-11-25T13:26:21.932Z",
+    "generator": "engine-gui doc-center 生成器（/dc/api/domains · /api/projects/:id/funcview）"
+  },
+  "names-map": {},
+  "module-docs": {
+    "domains": {
+      "创作迭代域（核心）": {
+        "name": "创作迭代域（核心）",
+        "layer": "核心域",
+        "related": "素材品牌域、话术域、账号域（~~渠道偏好域、AI 网关域~~ 退役 v1.3）",
+        "fishbone": {
+          "spine": [
+            {
+              "code": "AGG-1",
+              "name": "创作物 Deck",
+              "desc": "名称、类型、主题、需求描述、默认品牌规范ID、状态、当前版本ID、活动分支、定稿版本ID"
+            },
+            {
+              "code": "AGG-2",
+              "name": "内容版本 DeckVersion",
+              "desc": "版本号(谱系内)、分支名、父版本ID、内容快照(页面树 JSON)、来源指令文本、指令作用域、快照的品牌规范/素材引用、…"
+            }
+          ],
+          "upperRibs": [],
+          "lowerRibs": []
+        }
+      },
+      "素材品牌域": {
+        "name": "素材品牌域",
+        "layer": "支撑域",
+        "related": "创作迭代域（被引用）",
+        "fishbone": {
+          "spine": [
+            {
+              "code": "AGG-1",
+              "name": "素材 Asset",
+              "desc": "文件名、分类、存储key、类型、尺寸、状态"
+            },
+            {
+              "code": "AGG-2",
+              "name": "品牌规范 BrandKit",
+              "desc": "规范名、色板(JSON)、字体组(JSON)、标志素材ID"
+            }
+          ],
+          "upperRibs": [],
+          "lowerRibs": []
+        }
+      },
+      "话术域": {
+        "name": "话术域",
+        "layer": "支撑域",
+        "related": "创作迭代域（被引用）",
+        "fishbone": {
+          "spine": [
+            {
+              "code": "AGG-1",
+              "name": "话术模板 PromptTemplate",
+              "desc": "标题、话术正文、分类、使用场景"
+            }
+          ],
+          "upperRibs": [],
+          "lowerRibs": []
+        }
+      },
+      "~~渠道偏好域~~（退役 v1.3）": {
+        "name": "~~渠道偏好域~~（退役 v1.3）",
+        "layer": "基础数据域",
+        "related": "—",
+        "fishbone": {
+          "spine": [
+            {
+              "code": "D4",
+              "name": "~~渠道偏好域~~（退役 v1.3）",
+              "desc": "~~用户级生成资源配置~~（ADR-018 移除）"
+            }
+          ],
+          "upperRibs": [],
+          "lowerRibs": []
+        }
+      },
+      "~~AI 网关域~~（退役 v1.3）": {
+        "name": "~~AI 网关域~~（退役 v1.3）",
+        "layer": "通用域（平台）",
+        "related": "—",
+        "fishbone": {
+          "spine": [
+            {
+              "code": "AGG-1",
+              "name": "~~渠道偏好 ChannelPreference~~（移除 v1.3）",
+              "desc": "用户ID、默认渠道/模型、分任务类型档位(JSON)"
+            }
+          ],
+          "upperRibs": [],
+          "lowerRibs": []
+        }
+      },
+      "账号域": {
+        "name": "账号域",
+        "layer": "通用域（平台）",
+        "related": "全部域（提供 user 上下文）",
+        "fishbone": {
+          "spine": [
+            {
+              "code": "AGG-1",
+              "name": "账号 Account",
+              "desc": "登录名/邮箱、凭据、昵称、状态"
+            },
+            {
+              "code": "AGG-2",
+              "name": "**个人 API token ApiToken（新增 v1.3）**",
+              "desc": "用途名、token 哈希（SHA-256）、展示前缀、过期时刻、最近使用、吊销时刻"
+            }
+          ],
+          "upperRibs": [],
+          "lowerRibs": []
+        }
+      }
+    },
+    "domainDetails": {
+      "创作迭代域（核心）": {
+        "description": "生成-调整-版本闭环（v1.3：生成/调整由外部 coding agent 经 MCP 直写承接）",
+        "tablePrefix": "",
+        "tableCount": 0,
+        "aggregateRoot": "创作物 Deck",
+        "objects": [
+          {
+            "name": "创作物 Deck",
+            "table": "",
+            "type": "aggregate",
+            "relation": "",
+            "parent": null,
+            "condition": ""
+          },
+          {
+            "name": "内容版本 DeckVersion",
+            "table": "",
+            "type": "aggregate",
+            "relation": "隶属 Deck（deckId 外联）",
+            "parent": null,
+            "condition": ""
+          },
+          {
+            "name": "页面/内容块",
+            "table": "",
+            "type": "entity",
+            "relation": "DeckVersion.content JSON",
+            "parent": null,
+            "condition": ""
+          },
+          {
+            "name": "大纲 Outline",
+            "table": "",
+            "type": "entity",
+            "relation": "Deck.draftOutline JSON",
+            "parent": null,
+            "condition": ""
+          },
+          {
+            "name": "生成任务 GenerationTask（网关视角）（退役 v1.3）",
+            "table": "",
+            "type": "entity",
+            "relation": "服务于 Deck/DeckVersion",
+            "parent": null,
+            "condition": ""
+          },
+          {
+            "name": "导出任务 ExportTask",
+            "table": "",
+            "type": "entity",
+            "relation": "服务于 Deck 定稿交付",
+            "parent": null,
+            "condition": ""
+          }
+        ]
+      },
+      "素材品牌域": {
+        "description": "一致性资产供给",
+        "tablePrefix": "",
+        "tableCount": 0,
+        "aggregateRoot": "素材 Asset",
+        "objects": [
+          {
+            "name": "素材 Asset",
+            "table": "",
+            "type": "aggregate",
+            "relation": "",
+            "parent": null,
+            "condition": ""
+          },
+          {
+            "name": "品牌规范 BrandKit",
+            "table": "",
+            "type": "aggregate",
+            "relation": "",
+            "parent": null,
+            "condition": ""
+          }
+        ]
+      },
+      "话术域": {
+        "description": "调整话术沉淀复用",
+        "tablePrefix": "",
+        "tableCount": 0,
+        "aggregateRoot": "话术模板 PromptTemplate",
+        "objects": [
+          {
+            "name": "话术模板 PromptTemplate",
+            "table": "",
+            "type": "aggregate",
+            "relation": "",
+            "parent": null,
+            "condition": ""
+          }
+        ]
+      },
+      "~~AI 网关域~~（退役 v1.3）": {
+        "description": "~~provider 适配/路由/任务调度/计量~~（ADR-018 移除）",
+        "tablePrefix": "",
+        "tableCount": 0,
+        "aggregateRoot": "~~渠道偏好 ChannelPreference~~（移除 v1.3）",
+        "objects": [
+          {
+            "name": "~~渠道偏好 ChannelPreference~~（移除 v1.3）",
+            "table": "",
+            "type": "aggregate",
+            "relation": "",
+            "parent": null,
+            "condition": ""
+          }
+        ]
+      },
+      "账号域": {
+        "description": "注册登录/会话/多端同步（仅 MCP 本地离线）/**MCP 远程鉴权凭证**",
+        "tablePrefix": "",
+        "tableCount": 0,
+        "aggregateRoot": "账号 Account",
+        "objects": [
+          {
+            "name": "账号 Account",
+            "table": "",
+            "type": "aggregate",
+            "relation": "",
+            "parent": null,
+            "condition": ""
+          },
+          {
+            "name": "**个人 API token ApiToken（新增 v1.3）**",
+            "table": "",
+            "type": "aggregate",
+            "relation": "",
+            "parent": null,
+            "condition": ""
+          }
+        ]
+      }
+    }
+  }
+}

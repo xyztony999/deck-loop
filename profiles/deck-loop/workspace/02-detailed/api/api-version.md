@@ -1,13 +1,19 @@
 # API 设计 — 版本管理（C-04）
 
+> **ADR-018 增量（2026-11-25）**：+POST /ver/version/agent-create（agent 直写唯一
+> 内容写入口，仅个人 API token；复用 VersionArchiveService 单事务；api-web-agent.md
+> §4.2）。§3.2「版本写入仅由任务成功回调路径」修订为「任务成功回调（历史）或
+> agent-create 直写，均经 VersionArchiveService 唯一入口」。其余 6 端点与 content
+> JSON 契约冻结不变。
+
 | 属性 | 值 |
 |------|-----|
 | 模块编码 | C-04 版本管理 |
 | 接口域 | ver |
 | 功能类型 | 业务流程类（不可变版本聚合 + 只读分析 + 指针编排） |
 | 服务形态 | Node.js + TypeScript + NestJS + MongoDB（deck-loop-core 单服务，06-node-api-conventions） |
-| 版本 | v1.2 |
-| 日期 | 2026-10-08 |
+| 版本 | v1.3 |
+| 日期 | 2026-11-25 |
 | 输入 | prd-version.md v1.1 / domain-model.md v1.2 |
 
 ## 1. 模块设计概述
@@ -212,4 +218,5 @@ operList（树节点）：set-current(rollback 语义)、fork-from、export-from
 |------|------|---------|------|
 | v1.0 | 2026-10-07 | initial | 首次生成 |
 | v1.1 | 2026-10-08 | structural | 服务形态改 Node/TS/NestJS+MongoDB（D0-v3）；§5.3 DDL→dl_deck_version collection 设计（content/instruction_snapshot 整体嵌入、跨聚合仅存 id、uk 复合唯一索引）；§4.5 MQ→进程内事件（businessType 不变）；seq 分配改事务内 max+1。接口契约与 content JSON 契约冻结不变 |
+| v1.3 | 2026-11-25 | interface_added / rule_changed | **ADR-018 增量**（web-mgmt-20261125）：+POST /ver/version/agent-create（agent 直写唯一内容写入口，仅个人 API token，复用 VersionArchiveService 单事务；契约详情 api-web-agent.md §4.2）；§3.2 写路径约束修订为「任务成功回调（历史）或 agent-create，均经唯一入口」；端点 6→7。content JSON 契约/INV-11/索引冻结不变 |
 | v1.2 | 2026-10-08 | restored | 复议恢复多端同步（D0-v3 §5，ADR-013 修订）：§4.5 ver_version_created 订阅方恢复「多端同步、客户端通知」v1 原订阅方。契约与 collection 设计不变 |

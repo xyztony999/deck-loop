@@ -4,15 +4,21 @@
 
 | 属性 | 值 |
 |------|-----|
-| 版本 | v1.2 |
-| 日期 | 2026-11-24 |
-| 服务形态 | Node.js + TypeScript + NestJS 单服务 deck-loop-core + **PostgreSQL（TypeORM）**（宝塔「Node 项目」部署/PM2 守护+内存限额，PG 与 UniGate 共实例不同 database；Docker Compose 备选——ADR-011/016）。**§3 MongoDB 建模规约自 v1.2 起由 §7 PostgreSQL 增补节替代**；契约冻结（§1）/模块组织（§2）/查询安全（§4）/进程内事件（§5）/错误码枚举（§6）口径不变 |
+| 版本 | v1.3 |
+| 日期 | 2026-11-25 |
+| 服务形态 | Node.js + TypeScript + NestJS 单服务 deck-loop-core + **PostgreSQL（TypeORM）**（宝塔「Node 项目」部署/PM2 守护+内存限额，PG 与 UniGate 共实例不同 database；Docker Compose 备选——ADR-011/016）。**§3 MongoDB 建模规约自 v1.2 起由 §7 PostgreSQL 增补节替代**；模块组织（§2）/查询安全（§4）/进程内事件（§5）/错误码枚举（§6）口径不变。**§1 契约冻结声明自 v1.3 起按 ADR-018 修订（首次破坏性变更）；新增 §8 双凭证鉴权与 agent 直写规约** |
 
 ## 1. 契约冻结声明
 
-- **v1 API 契约全量冻结沿用（v1 全量 66 端点，无删除）**：接口路径 / HTTP 方法 / AO / VO 字段 / `Result<T>`·`PageResult<T>` 包装 / 错误码（BIZ_*）/ 枚举池（03/04）**一字不改**（前端 v1 代码全量复用，含多端同步交互；仅代理目标随 v3 调整）。
+- **v1 API 契约全量冻结沿用（v1 全量 66 端点，无删除）**（**v1.3 起被 ADR-018 修订，见下**）：接口路径 / HTTP 方法 / AO / VO 字段 / `Result<T>`·`PageResult<T>` 包装 / 错误码（BIZ_*）/ 枚举池（03/04）**一字不改**（前端 v1 代码全量复用，含多端同步交互；仅代理目标随 v3 调整）。
 - 2026-10-08 复议修订（D0-v3 §5，ADR-013 修订）：恢复 POST /auth/sync/pull 及其专用配套（登录 VO 的 syncCursor 字段、游标扫描机制、SyncChangeOp 枚举），端点口径 65→66；v1.0 曾按「砍同步」声明的唯一契约删除**作废**。
 - 本规约与 v1 的差异仅限**实现层**：DDL→MongoDB collection、MQ→进程内事件、Java→Node/TS；传输契约永不冲突。各 api 文档 §4.4（接口清单/详情）为契约唯一事实源，本规约不重复也不修改它。
+- **v1.3 修订（ADR-018，2026-11-25，web-mgmt-20261125）——66 端点全量冻结声明解除**：
+  AI 网关彻底移除，generation/adjustment/channel/gateway 模块退役，**移除 23 端点、
+  迁移 1（/gen/outline/save→/deck/deck/outline-save）、新增 4（agent-create + token
+  issue/revoke/list），端点口径 75→56**（逐条清单与对账见 api-web-agent.md §5.4）。
+  未被该增量修订的端点契约**继续冻结有效**；增量契约唯一事实源 = api-web-agent.md。
+  受影响旧客户端（Tauri client）已移除，本地 MCP 不经 HTTP 零影响。
 
 ## 2. NestJS 模块组织
 
@@ -100,10 +106,38 @@
 - **测试**：mongodb-memory-server → pg-mem（进程内 PG，registerFunction version/current_database  shim）。
 - **栈依赖**：运行时移除 @nestjs/mongoose/mongoose，新增 @nestjs/typeorm/typeorm/pg；后端栈实质 node-nestjs-mongo→node-nestjs-psql（profile depends 键改名留待用户确认）。
 
+## 8. 双凭证鉴权与 agent 直写规约（v1.3，ADR-018）
+
+> 增量 id web-mgmt-20261125。契约详情见 `02-detailed/api/api-web-agent.md`；本节为栈级强制规约。
+
+### 8.1 双凭证鉴权
+
+- **会话体系不变**：X-Auth-Token → SessionTokenService（30 天滑动/内存撤销表），网站消费。
+- **个人 API token（新）**：X-Api-Token → **独立 ApiTokenService/ApiTokenGuard**（dl_api_token 表，SHA-256 哈希查找+恒时比较+expires_at/revoked_at 判定+last_used_at 节流≤1 次/分钟）。明文 `dlpat_`+43 字符 base64url，**仅签发回执一次**（INV-28：不落库不进日志不回显）；吊销即时生效（每次查库，重启不丢失）。
+- **全局 AuthGuard 回落顺序**：有 X-Auth-Token → 会话校验（现状）；无会话头且有 X-Api-Token → 委托 ApiTokenService.verify；两者皆无 → BIZ_AUTH_SESSION_EXPIRED。校验通过挂 request.user={userId, accountId, via}，**属主隔离（ADR-005）与 NR 查询规约口径不变**。
+- **agent 直写端点仅 token**：POST /ver/version/agent-create 标 @Public() 旁路会话守卫 + @UseGuards(ApiTokenGuard)；无效统一 BIZ_AUTH_TOKEN_INVALID（防枚举）。
+- token 等价账号全量属主权限（单用户无 RBAC/scope）；token 管理端点（/auth/token/*）仅会话。
+
+### 8.2 agent 直写红线
+
+- **VersionArchiveService.createVersionFromTask 为版本内容唯一写入口**（线上 agent-create 与本地 MCP version_create 同一服务）：单事务（seq FOR UPDATE→insert-only→movePointer→adjustRefCounts）+ 首版 onFirstVersionCreated + 提交后发 ver_version_created。**禁止任何绕过该服务的内容写路径**（INV-11 不可变延续）。
+- taskId 合成 `agent-<snowflake>`，不建 dl_generation_task 行（任务表历史只读）。
+- 定向调整：基线固化进 instruction_snapshot + INV-9 scope 存在性 + assertTargetedInvariance，越界 BIZ_VERSION_TARGET_INVARIANCE（BIZ 错误，不产版本）。
+- 载荷红线：content JSON ≤2MB（env AGENT_CONTENT_MAX_MB）、pages 1~200、instruction ≤2000（1.6G 内存红线 ADR-016）。
+- 服务端零渲染（ADR-015）不变：导出渲染在 MCP 本地进程，产物经 upload/fail 回传。
+
+### 8.3 模块与表口径
+
+- 八域→**五域**：DeckModule/VersionModule/DeliveryModule/AssetsModule/PlatformModule（auth+token+sync）；GenerationModule/AdjustmentModule/ChannelModule 与 platform/gateway 包退役（编码 C-02/C-03/D-01/P-01 不复用）。
+- 物理表 11→**10**（11−2+1，W1 计数修正）：+dl_api_token；−dl_channel、−dl_channel_preference（DROP 迁移脚本 scripts/migrate-web-agent.ts）；dl_generation_task/dl_usage_record 保留历史只读。dl_deck_log 设计层未落地，不计物理表。
+- 同步扫描聚合：去 PREFERENCE；TASK 历史只读；DECK/VERSION/ASSET/BRANDKIT/PROMPT/EXPORT 活跃（/auth/sync/pull 契约与 F07 复合游标不变，仅服务 MCP 本地离线模式）。
+- 退役事件：gen_task_created/gen_task_finished/gw_task_advanced/gw_usage_recorded/channel_preference_changed；退役错误码族：BIZ_TASK_*/BIZ_GW_*/BIZ_CHANNEL_*/BIZ_ADJUST_*；新增：BIZ_AUTH_TOKEN_INVALID/BIZ_DECK_OUTLINE_INVALID/BIZ_VERSION_TARGET_INVARIANCE。枚举池（03/04）值域不动。
+
 ## 更新记录
 
 | 版本 | 日期 | 变更类型 | 说明 |
 |------|------|---------|------|
+| v1.3 | 2026-11-25 | redirected | ADR-018（web-mgmt-20261125）：§1 契约冻结声明修订（66 冻结解除，75→56 端点，增量事实源 api-web-agent.md）；新增 §8 双凭证鉴权（会话不变+独立 ApiTokenGuard+AuthGuard 回落）与 agent 直写红线（VersionArchiveService 唯一写入口/载荷红线/零渲染）；模块八域→五域、表 11→10、同步扫描收窄。NR 查询安全/进程内事件/错误码格式口径不变 |
 | v1.2 | 2026-11-24 | redirected | ADR-016 持久层 MongoDB→PostgreSQL（TypeORM）：新增 §7 PostgreSQL 建模增补节替代 §3；服务形态注记改 PG/UniGate 共实例；契约冻结/模块组织/查询安全/进程内事件/错误码枚举口径不变；对外 API 契约与客户端零变化 |
 | v1.0 | 2026-10-08 | initial | 随 v3 技术栈重定向新建（替代 java-microservice 20-api-conventions；契约冻结 + Mongo 建模 + 查询安全 + 进程内事件） |
 | v1.1 | 2026-10-08 | reconsidered | 复议修订（D0-v3 §5）：§1 契约冻结声明改「v1 全量 66 端点冻结，无删除」（/auth/sync/pull 及专用配套恢复，v1.0 的删除声明作废）；§3.6 新增同步游标 Mongo 实现规约（Date 毫秒游标+(cursor,id) 复合推进、SyncChangeScanner 八聚合 updated_time+id 升序扫描）；服务形态注记改宝塔 Node 项目部署+既有 MongoDB 实例（ADR-011） |

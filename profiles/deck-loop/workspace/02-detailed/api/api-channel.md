@@ -1,13 +1,17 @@
 # API 设计 — AI 渠道与偏好（D-01）
 
+> **⚠ 模块退役（ADR-018，2026-11-25）**：本域 4 端点 + 2026-10-23 渠道管理端 6 端点
+> 全部移除（api-web-agent.md §5.4）；dl_channel/dl_channel_preference 表删除，
+> dl_usage_record 保留历史只读。本文档转历史参考，**不再作为实现依据**。
+
 | 属性 | 值 |
 |------|-----|
 | 模块编码 | D-01 AI 渠道与偏好 |
 | 接口域 | channel |
 | 功能类型 | 主数据类（用户级配置，薄建模） |
 | 服务形态 | Node.js + TypeScript + NestJS + MongoDB（deck-loop-core 单服务，06-node-api-conventions） |
-| 版本 | v1.2 |
-| 日期 | 2026-10-08 |
+| 版本 | v1.3 |
+| 日期 | 2026-11-25 |
 | 输入 | prd-channel.md v1.1 / domain-model.md v1.2 |
 
 ## 1. 模块设计概述
@@ -180,4 +184,5 @@ VO：rows[{dimKey,dimName,taskCount,promptTokens,completionTokens,lastUsedAt}]�
 |------|------|---------|------|
 | v1.0 | 2026-10-07 | initial | 首次生成 |
 | v1.1 | 2026-10-08 | structural | 服务形态改 Node/TS/NestJS+MongoDB（D0-v3）；§5.3 DDL→dl_channel_preference collection 设计（preference_map 嵌入/uk_user 唯一索引）；§4.5 MQ→进程内事件；用量聚合改 aggregate（服务端构造）。接口契约冻结不变 |
+| v1.3 | 2026-11-25 | structural | **ADR-018 模块退役注记**（web-mgmt-20261125）：本域 4 端点 + 渠道管理端 6 端点（channel-admin-2026-10-23）全部移除；dl_channel/dl_channel_preference 表删除、dl_usage_record 历史只读；本文档转历史参考，增量契约事实源 api-web-agent.md（§5.4）。正文历史定义保留不重写 |
 | v1.2 | 2026-10-08 | restored | 复议恢复多端同步（D0-v3 §5，ADR-013 修订）：§4.5 channel_preference_changed 订阅方恢复「多端同步」v1 原订阅方。契约与 collection 设计不变 |

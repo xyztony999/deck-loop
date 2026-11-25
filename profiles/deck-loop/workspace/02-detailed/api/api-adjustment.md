@@ -1,13 +1,18 @@
 # API 设计 — 语言调整（C-03）
 
+> **⚠ 模块退役（ADR-018，2026-11-25）**：本域 4 端点全部移除（api-web-agent.md §5.4）；
+> 调整由 coding agent 经 MCP 直写承接，定向不变性校验迁 /ver/version/agent-create
+> 守卫（api-web-agent.md §4.2）；调整指令值对象契约（instruction_snapshot.adjust 节）
+> 沿用。本文档转历史参考，**不再作为实现依据**。
+
 | 属性 | 值 |
 |------|-----|
 | 模块编码 | C-03 语言调整（产品核心） |
 | 接口域 | adjust |
 | 功能类型 | 业务流程类（异步任务子流程驱动） |
 | 服务形态 | Node.js + TypeScript + NestJS + MongoDB（deck-loop-core 单服务，06-node-api-conventions） |
-| 版本 | v1.1 |
-| 日期 | 2026-10-08 |
+| 版本 | v1.2 |
+| 日期 | 2026-11-25 |
 | 输入 | prd-adjustment.md v1.1 / domain-model.md v1.1 |
 
 ## 1. 模块设计概述
@@ -144,4 +149,5 @@ VO：taskId、taskCode、taskStatus、forked(bool)。
 | 版本 | 日期 | 变更类型 | 说明 |
 |------|------|---------|------|
 | v1.0 | 2026-10-07 | initial | 首次生成；任务/版本表复用 |
+| v1.2 | 2026-11-25 | structural | **ADR-018 模块退役注记**（web-mgmt-20261125）：4 端点全部移除；定向不变性校验迁 agent-create 守卫；指令值对象契约沿用；本文档转历史参考，增量契约事实源 api-web-agent.md（§4.2/§5.4）。正文历史定义保留不重写 |
 | v1.1 | 2026-10-08 | structural | 服务形态改 Node/TS/NestJS+MongoDB（D0-v3）；§5.2/§5.3 改无独立 collection（指令值对象随快照嵌入）；§4.5 事件机制改进程内。指令值对象契约与接口契约冻结不变 |

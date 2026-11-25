@@ -1,13 +1,19 @@
 # API 设计 — AI 生成网关 · 账号与设备同步（P-01 / P-02）
 
+> **⚠ ADR-018 修订（2026-11-25）**：P-01 网关退役——GET /gw/task/stream 移除、
+> 网关调度/适配器/计量停止（dl_usage_record 历史只读）；P-02 保留（auth 4 +
+> sync/pull，同步仅服务 MCP 本地离线、扫描去 PREFERENCE）并新增个人 API token
+> 三端点（/auth/token/issue·revoke·list，api-web-agent.md §4.1）。本文档未修订
+> 部分（账号/同步契约）继续冻结有效。
+
 | 属性 | 值 |
 |------|-----|
 | 模块编码 | P-01 AI 生成网关、P-02 账号与设备同步（平台支撑域；v1.2 复议恢复多端同步，ADR-013） |
 | 接口域 | auth（账号）/ gw（网关内部） |
 | 功能类型 | 平台支撑（通用能力，薄业务建模） |
 | 服务形态 | Node.js + TypeScript + NestJS + MongoDB（deck-loop-core 单服务，06-node-api-conventions） |
-| 版本 | v1.2 |
-| 日期 | 2026-10-08 |
+| 版本 | v1.3 |
+| 日期 | 2026-11-25 |
 | 输入 | prd-platform.md v2.1 / domain-model.md v1.2 |
 
 ## 1. 模块设计概述
@@ -196,3 +202,4 @@ Node 实现：GET 路由直接回写 text/event-stream 响应流（headers 设 C
 | 日期 | 变更 | 说明 |
 |------|------|------|
 | 2026-10-20 | sync/pull 增量可选字段（F07，功能核查修复） | AO 新增 `lastPosition?: string`、VO 新增 `newPosition?: string`（`AGGREGATE:id` 复合游标位置）——与 lastCursor 组成可续传全序，修复同毫秒 >200 条漏同步；旧客户端不传时行为不变（纯毫秒游标兼容）。 |
+| 2026-11-25 | **ADR-018 修订**（web-mgmt-20261125，v1.3） | P-01 网关退役：GET /gw/task/stream 移除，调度/适配器/计量停止（dl_usage_record 历史只读）；P-02 保留账号 4 + sync/pull（同步收窄仅服务 MCP 本地离线，扫描去 PREFERENCE、TASK 历史只读）；新增 /auth/token/issue·revoke·list（ApiToken 聚合，契约见 api-web-agent.md §4.1）。账号/同步未修订契约继续冻结 |

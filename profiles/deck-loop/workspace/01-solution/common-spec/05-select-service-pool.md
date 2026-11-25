@@ -8,7 +8,7 @@
 | asset.select.assetList | POST /asset/select/asset-list | 素材品牌域 | SelectOption{value=assetId, label=assetName}＋扩展{assetType,url} | 生成/调整引用素材、品牌规范标志选择 |
 | asset.select.brandkitList | POST /asset/select/brandkit-list | 素材品牌域 | SelectOption{value=brandKitId, label=kitName}＋扩展{isDefault} | 创作物默认规范、指令品牌约束 |
 | asset.select.promptList | POST /asset/select/prompt-list | 话术域 | SelectOption{value=templateId, label=title}＋扩展{content,templateScene} | 指令输入话术选用 |
-| channel.select.modelOptions | POST /channel/select/model-options | AI 网关域 | SelectOption{value=channelCode::modelCode, label=渠道/模型名}＋扩展{capabilityTags} | 渠道偏好设置 |
+| ~~channel.select.modelOptions~~（退役 ADR-018） | ~~POST /channel/select/model-options~~ | ~~AI 网关域~~（渠道域退役，端点删除） | ~~SelectOption{value=channelCode::modelCode, label=渠道/模型名}＋扩展{capabilityTags}~~ | ~~渠道偏好设置~~ |
 | deck.select.deckList | POST /deck/select/deck-list | 创作迭代域 | SelectOption{value=deckId, label=deckName}＋扩展{deckStatus,deckType} | 导出记录筛选等跨页引用 |
 
 > 入池规则：新数据源先在所属域 Provider/Select Controller 建端点并登记本池，再以服务标识引用。

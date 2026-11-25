@@ -7,6 +7,13 @@
 | 关联 | ADR-016、prd-persistence-migration v1.0、06 规约 v1.2 增补节 |
 | 红线 | **对外 API 契约零变化**（66 端点冻结）；本文档仅描述实现层持久层，不修改任何 api-*.md §4.4 契约 |
 
+> **ADR-018 注记（2026-11-25，web-mgmt-20261125）**：本文档为 ADR-016 迁移期历史设计。
+> ADR-018 后表口径变更：**11→10 物理表**（+dl_api_token，−dl_channel/−dl_channel_preference，
+> DROP/CREATE 迁移脚本 scripts/migrate-web-agent.ts，synchronize=false 红线不变）；
+> dl_generation_task entity 迁 platform/schemas（历史只读），dl_usage_record 历史只读；
+> §1 映射表中 channel 两表行作废、generation entity 路径以 typeorm-config.ts 为准。
+> 端点契约修订见 api-web-agent.md（75→56）。
+
 ## 0. 总则
 
 - ORM：TypeORM 0.3（`@nestjs/typeorm` 10）+ `pg` 8。每物理表单一 `@Entity`；业务主键（雪花串）= `@PrimaryColumn`（varchar），**取代 ObjectId `_id`**（NR-08：无 `_id` 暴露面）。

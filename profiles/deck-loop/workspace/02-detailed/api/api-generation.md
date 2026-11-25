@@ -1,13 +1,17 @@
 # API 设计 — 初稿生成（C-02）
 
+> **⚠ 模块退役（ADR-018，2026-11-25）**：本域 9 端点中 8 个移除、outline/save 迁
+> /deck/deck/outline-save（api-web-agent.md §4.3/§5.4）；dl_generation_task 表保留
+> 历史只读审计。本文档转历史参考，**不再作为实现依据**；增量契约见 api-web-agent.md。
+
 | 属性 | 值 |
 |------|-----|
 | 模块编码 | C-02 初稿生成 |
 | 接口域 | gen |
 | 功能类型 | 业务流程类（异步任务子流程驱动） |
 | 服务形态 | Node.js + TypeScript + NestJS + MongoDB（deck-loop-core 单服务，06-node-api-conventions） |
-| 版本 | v1.2 |
-| 日期 | 2026-10-08 |
+| 版本 | v1.3 |
+| 日期 | 2026-11-25 |
 | 输入 | prd-generation.md v1.1 / domain-model.md v1.2 |
 
 ## 1. 模块设计概述
@@ -218,4 +222,5 @@ operList：cancel(QUEUED/RUNNING)、retry(FAILED)。
 |------|------|---------|------|
 | v1.0 | 2026-10-07 | initial | 首次生成；任务子流程供 C-03 复用 |
 | v1.1 | 2026-10-08 | structural | 服务形态改 Node/TS/NestJS+MongoDB（D0-v3）；§5.3 DDL→dl_generation_task collection 设计（instruction_snapshot 嵌入/跨聚合引用/索引）；§4.5 MQ→进程内事件（businessType 不变）；INV-8 互斥与终态幂等平移 Mongo 事务语义。接口契约冻结不变 |
+| v1.3 | 2026-11-25 | structural | **ADR-018 模块退役注记**（web-mgmt-20261125）：8 端点移除 + outline/save 迁 /deck/deck/outline-save；dl_generation_task 转历史只读审计；本文档转历史参考，增量契约事实源 api-web-agent.md（§4.3/§5.4）。正文历史定义保留不重写 |
 | v1.2 | 2026-10-08 | restored | 复议恢复多端同步（D0-v3 §5，ADR-013 修订）：§4.5 gen_task_finished 订阅方恢复「多端同步、客户端通知（SSE 推送）」v1 原订阅方。契约与 collection 设计不变 |

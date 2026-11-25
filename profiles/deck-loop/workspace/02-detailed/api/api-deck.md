@@ -1,13 +1,17 @@
 # API 设计 — 创作物管理与定稿（C-01 / C-05）
 
+> **ADR-018 增量（2026-11-25）**：+POST /deck/deck/outline-save（自 /gen/outline/save
+> 迁入，AO/VO 不变，错误码改 BIZ_DECK_OUTLINE_INVALID；api-web-agent.md §4.3）。
+> 其余 10 端点契约冻结不变；detail withStats/withLatestTask 历史任务读保留。
+
 | 属性 | 值 |
 |------|-----|
 | 模块编码 | C-01 创作物管理、C-05 定稿管理 |
 | 接口域 | deck |
 | 功能类型 | 业务流程类（状态机驱动，无审批） |
 | 服务形态 | Node.js + TypeScript + NestJS + MongoDB（deck-loop-core 单服务，06-node-api-conventions） |
-| 版本 | v1.2 |
-| 日期 | 2026-10-08 |
+| 版本 | v1.3 |
+| 日期 | 2026-11-25 |
 | 输入 | prd-deck.md v1.2 / domain-model.md v1.2 |
 
 ## 1. 模块设计概述
@@ -300,4 +304,5 @@ AO：deckId、confirm(true)。
 |------|------|---------|------|
 | v1.0 | 2026-10-07 | initial | 首次生成（PRD/领域模型输入） |
 | v1.1 | 2026-10-08 | structural | 服务形态改 Node/TS/NestJS+MongoDB（D0-v3）；§5.3 DDL→dl_deck collection 设计（嵌入/引用/索引）；§4.5 MQ→进程内事件（businessType 不变）；§5.2 SQL→数据访问清单。接口路径/AO/VO/错误码/枚举契约冻结不变 |
+| v1.3 | 2026-11-25 | interface_added | **ADR-018 增量**（web-mgmt-20261125）：+POST /deck/deck/outline-save（自 /gen/outline/save 迁入，AO/VO 不变，错误码 BIZ_TASK_SCOPE_INVALID→BIZ_DECK_OUTLINE_INVALID；契约详情 api-web-agent.md §4.3）；端点 10→11。其余契约冻结不变；detail withStats/withLatestTask 历史任务读保留 |
 | v1.2 | 2026-10-08 | restored | 复议恢复多端同步（D0-v3 §5，ADR-013 修订）：§4.5 事件订阅方恢复「多端同步（P-02）、客户端通知」v1 原订阅方。契约与 collection 设计不变 |

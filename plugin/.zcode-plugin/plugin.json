@@ -1,0 +1,25 @@
+{
+  "name": "deck-loop",
+  "version": "0.1.0",
+  "description": "Local-first deck creation driven by the coding agent: deck-loop MCP tools for deck lifecycle, immutable version tree, targeted-adjust invariance, and headless PDF/PNG/PPTX export. No API key needed — reasoning runs on your coding plan.",
+  "description_i18n": {
+    "en": "Local-first deck creation driven by the coding agent: deck-loop MCP tools for deck lifecycle, immutable version tree, targeted-adjust invariance, and headless PDF/PNG/PPTX export. No API key needed — reasoning runs on your coding plan.",
+    "zh-CN": "本地优先的 agent 驱动幻灯片创作：deck-loop MCP 工具覆盖创作物生命周期、不可变版本树、定向调整不变性、headless PDF/PNG/PPTX 导出。零 API key——推理消耗你的 coding plan。"
+  },
+  "author": {
+    "name": "deck-loop"
+  },
+  "license": "AGPL-3.0-only",
+  "skills": "skills",
+  "commands": "commands",
+  "mcpServers": {
+    "deck-loop": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${ZCODE_PLUGIN_ROOT}/../mcp-server/dist/main.js"
+      ],
+      "cwd": "${ZCODE_PROJECT_DIR}"
+    }
+  }
+}

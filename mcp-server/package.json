@@ -1,0 +1,44 @@
+{
+  "name": "@deck-loop/mcp",
+  "version": "0.1.0",
+  "description": "deck-loop local-first MCP server — coding agent 出推理（coding plan），deck-loop 出确定性状态机（ADR-017）",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "deck-loop-mcp": "dist/main.js"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "dev": "tsx src/main.ts",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --watchman=false"
+  },
+  "dependencies": {
+    "@deck-loop/core": "link:../server-node",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "better-sqlite3": "^12.2.0",
+    "jszip": "^3.10.2",
+    "playwright-core": "^1.49.0",
+    "pptxgenjs": "^4.0.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.2",
+    "cross-env": "^10.1.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.2"
+  }
+}

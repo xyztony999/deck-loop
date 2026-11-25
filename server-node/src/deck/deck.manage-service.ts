@@ -8,10 +8,12 @@ import { nextId } from '../common/utils/snowflake';
 import {
   DECK_NOT_FOUND,
   DECK_NOT_FOUND_MSG,
+  DECK_OUTLINE_INVALID,
   DECK_STATUS_FORBIDDEN,
   DECK_TASK_RUNNING,
   DECK_TASK_RUNNING_MSG,
 } from './deck.errors';
+import { DeckDomainService } from './deck.domain-service';
 import { DeckEventPublisher } from './deck.events';
 import {
   DeckDetailAO,
@@ -23,8 +25,10 @@ import {
   DeckSaveAO,
   DeckSaveVO,
   DeckSelectListAO,
+  OutlineSaveAO,
   parseTimeRangeBound,
 } from './deck.dto';
+import { serializeOutline } from './deck.outline-support';
 import { DeckRepository } from './deck.repository';
 import { DeckStatsRepository } from './deck.stats.repository';
 import { resolveDeckOperList } from './deck.oper-resolver';
@@ -58,6 +62,7 @@ export class DeckManageService {
   constructor(
     private readonly deckRepository: DeckRepository,
     private readonly deckStatsRepository: DeckStatsRepository,
+    private readonly deckDomainService: DeckDomainService,
     private readonly eventPublisher: DeckEventPublisher,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
@@ -269,6 +274,26 @@ export class DeckManageService {
       latestTask,
       operList: resolveDeckOperList(deck.deck_status, hasRunningTask, deck.created_by ?? null, userId),
     });
+  }
+
+  // ------------------------------------------------------------------
+  // 大纲保存（api-web-agent §4.3，ADR-018 自 /gen/outline/save 迁入）
+  // ------------------------------------------------------------------
+
+  /**
+   * 保存大纲编辑（Deck.draftOutline；**仅 DRAFT 态**，首版后只读）。
+   * 原 generation.outlineSave 逻辑逐字平移：DRAFT 守卫 + serializeOutline +
+   * updateDraftOutline（乐观锁）；错误码 BIZ_TASK_SCOPE_INVALID→BIZ_DECK_OUTLINE_INVALID。
+   * 双凭证（会话或 token，全局 AuthGuard 回落）；MCP outline_save 远程映射本端点。
+   */
+  async outlineSave(ao: OutlineSaveAO, userId: string): Promise<void> {
+    const deck = await this.loadOwned(ao.deckId, userId);
+    if (deck.deck_status !== DeckStatus.DRAFT) {
+      throw new BizException(DECK_OUTLINE_INVALID, '首个版本生成后大纲转只读，仅草稿状态可编辑');
+    }
+    const outline = serializeOutline(ao.outline);
+    // 0 行=deck 不存在/属主不符（deck 域 NOT_FOUND 透传）
+    await this.deckDomainService.updateDraftOutline(deck.deck_id, outline, userId);
   }
 
   // ------------------------------------------------------------------

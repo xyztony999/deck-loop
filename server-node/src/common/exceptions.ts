@@ -24,3 +24,13 @@ export const AUTH_SESSION_EXPIRED = 'BIZ_AUTH_SESSION_EXPIRED';
 
 /** v1 SessionTokenServiceImpl 会话过期提示语对齐 */
 export const AUTH_SESSION_EXPIRED_MSG = '会话已过期，请重新登录';
+
+/**
+ * BIZ_AUTH_TOKEN_INVALID（api-web-agent §3.4，ADR-018）：个人 API token
+ * 缺头/格式错/哈希不匹配/过期/吊销统一码（防枚举）。常量落 common 认证基础设施
+ * （AuthGuard 双凭证回落 + ApiTokenGuard 两处引用），platform.errors.ts re-export。
+ */
+export const AUTH_TOKEN_INVALID = 'BIZ_AUTH_TOKEN_INVALID';
+
+/** token 无效提示语（直白说清原因与出路，NR-14） */
+export const AUTH_TOKEN_INVALID_MSG = 'API token 无效或已过期，请在网站设置页重新签发';

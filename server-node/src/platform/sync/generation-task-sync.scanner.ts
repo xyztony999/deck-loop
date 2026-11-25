@@ -7,15 +7,16 @@ import {
 import { tiebreakFor, type SyncBoundary, type SyncChangeItem, type SyncScanResult, type SyncChangeScanner } from './sync-change-scanner';
 
 /**
- * TASK 聚合同步扫描器（platform 内置——dl_generation_task 与 generation 域同表共治 D1，
- * 网关推进状态同样产生变更；v1 GenerationTaskSyncScanner 平移 + 06 §3.6 复合游标）。
+ * TASK 聚合同步扫描器（**历史只读**，ADR-018：dl_generation_task 停写——
+ * AI 网关退役后不再有新任务行，历史行仍可经 /auth/sync/pull 拉取对账；
+ * v1 GenerationTaskSyncScanner 平移 + 06 §3.6 复合游标）。
  *
- * - 游标口径：updated_time 毫秒值（写时分配，网关/generation 每次状态推进均触碰）；
+ * - 游标口径：updated_time 毫秒值（历史行写时分配）；
  * - 排序：(updated_time, task_id) 升序（$gt [cursor,id] 复合推进，毫秒不截断）；
  * - 毫秒边界裁剪：limit+1 探测更多 + 尾部同毫秒组裁剪（见 SPI 注释）；
  * - DELETE：delete_sign=1 的软删文档承载（任务软删场景，正常无删除）。
- * 其余聚合（DECK/VERSION/ASSET/BRANDKIT/PROMPT/PREFERENCE/EXPORT）由各域实现
- * SyncChangeScanner 并以 SYNC_CHANGE_SCANNER token 注册。
+ * 其余活跃聚合（DECK/VERSION/ASSET/BRANDKIT/PROMPT/EXPORT）由各域实现
+ * SyncChangeScanner 并以 SYNC_CHANGE_SCANNER token 注册（PREFERENCE 随渠道域退役）。
  */
 @Injectable()
 export class GenerationTaskSyncScanner implements SyncChangeScanner {

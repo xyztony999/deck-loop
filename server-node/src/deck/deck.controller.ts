@@ -13,6 +13,7 @@ import {
   DeckSaveAO,
   DeckSaveVO,
   DeckUnfinalizeAO,
+  OutlineSaveAO,
 } from './deck.dto';
 import { DeckManageService } from './deck.manage-service';
 
@@ -110,6 +111,20 @@ export class DeckController {
     @CurrentUser('userId') userId: string,
   ): Promise<Result<null>> {
     await this.deckManageService.unfinalize(ao.deckId, ao.confirm, userId);
+    return Result.success();
+  }
+
+  /**
+   * 9. 保存大纲编辑（api-web-agent §4.3，ADR-018 自 /gen/outline/save 迁入；
+   * AO/VO 契约不变；仅 DRAFT 态；双凭证——会话或 X-Api-Token 回落）。
+   */
+  @Post('outline-save')
+  @HttpCode(HttpStatus.OK)
+  async outlineSave(
+    @Body() ao: OutlineSaveAO,
+    @CurrentUser('userId') userId: string,
+  ): Promise<Result<null>> {
+    await this.deckManageService.outlineSave(ao, userId);
     return Result.success();
   }
 }

@@ -13,6 +13,7 @@
  */
 import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { json, urlencoded } from 'express';
 import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
@@ -22,6 +23,7 @@ import { ALL_ENTITIES } from '../../src/common/typeorm-config';
 import { DeckDomainService } from '../../src/deck/deck.domain-service';
 import { VersionArchiveService } from '../../src/version/version.archive-service';
 import { VersionArchiveCommand } from '../../src/version/version.dto';
+import { agentContentMaxBytes } from '../../src/version/version.agent-service';
 
 /**
  * pg-mem 内存 PostgreSQL（ADR-016 测试基建）：每 TestContext 独立建库 +
@@ -91,10 +93,6 @@ export const TEST_PASSWORD = process.env.DECK_TEST_PASSWORD ?? 'passw0rd!';
 /** 登录失败用例口令（合成夹具；与 TEST_PASSWORD 不同即可） */
 export const WRONG_PASSWORD = process.env.DECK_TEST_WRONG_PASSWORD ?? 'wrong-pass';
 
-/** 模拟渠道 apiKey（合成夹具非真实密钥；可经 DECK_TEST_MOCK_API_KEY 覆盖） */
-export const MOCK_CHANNEL_API_KEY =
-  process.env.DECK_TEST_MOCK_API_KEY ?? 'local-mock-key-not-a-secret';
-
 let userSeq = 0;
 
 /** 每用例唯一 userId/email（数据隔离，v1 uniqueUserId 对齐） */
@@ -114,14 +112,18 @@ export class TestContext {
     private readonly ds: DataSource,
   ) {}
 
-  /** 启动完整 Nest 应用（含与 main.ts 一致的全局管道），不监听端口 */
+  /** 启动完整 Nest 应用（含与 main.ts 一致的全局管道/body 限额），不监听端口 */
   static async create(): Promise<TestContext> {
     const dataSource = await createTestDataSource();
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(DataSource)
       .useValue(dataSource)
       .compile();
-    const app = moduleRef.createNestApplication();
+    const app = moduleRef.createNestApplication({ bodyParser: false });
+    // 与 main.ts 同口径：agent-create content 红线配套 body 限额
+    const bodyLimit = `${Math.ceil(agentContentMaxBytes() / 1024 / 1024) + 1}mb`;
+    app.use(json({ limit: bodyLimit }));
+    app.use(urlencoded({ extended: true, limit: bodyLimit }));
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
     return new TestContext(app, app.getHttpServer(), dataSource);
@@ -231,33 +233,39 @@ export async function postPublic(
 }
 
 /* ------------------------------------------------------------------ */
-/* 异步网关等待助手（v1 awaitTaskTerminal/awaitExportTerminal 对齐）      */
+/* 个人 API token 助手（ADR-018 双凭证；agent-create 仅 token）           */
 /* ------------------------------------------------------------------ */
 
-const TASK_TERMINAL = ['SUCCEEDED', 'FAILED', 'CANCELLED'];
-const EXPORT_TERMINAL = ['SUCCEEDED', 'FAILED', 'CANCELLED'];
-
-/** 轮询任务详情至终态，返回终态 data */
-export async function awaitTaskTerminal(
+/** 签发个人 token（会话守卫；返回签发回执——明文仅此一次） */
+export async function issueToken(
   ctx: TestContext,
   session: Session,
-  taskId: string,
-  timeoutMillis = 20_000,
-): Promise<any> {
-  const deadline = Date.now() + timeoutMillis;
-  let data: any = null;
-  while (Date.now() < deadline) {
-    data = okData(
-      await postJson(ctx, session, '/gen/task/detail', { taskId }),
-      '任务详情轮询',
-    );
-    if (TASK_TERMINAL.includes(data.taskStatus)) {
-      return data;
-    }
-    await sleep(100);
-  }
-  return data;
+  ao: Record<string, unknown> = { tokenName: '测试 token' },
+): Promise<{ tokenId: string; token: string; tokenPrefix: string; expiresAt: string | null }> {
+  return okData(await postJson(ctx, session, '/auth/token/issue', ao), '签发 token');
 }
+
+/** POST JSON（X-Api-Token 个人 token 凭证；双凭证回落/agent-create 专用） */
+export async function postWithToken(
+  ctx: TestContext,
+  token: string,
+  path: string,
+  body: unknown,
+): Promise<unknown> {
+  assertRelativePath(path);
+  const res = await request(ctx.server as never)
+    .post(path)
+    .set('x-api-token', token)
+    .send(body ?? {});
+  expect(res.status).toBe(200);
+  return res.body;
+}
+
+/* ------------------------------------------------------------------ */
+/* 异步等待助手（v1 awaitExportTerminal 对齐）                            */
+/* ------------------------------------------------------------------ */
+
+const EXPORT_TERMINAL = ['SUCCEEDED', 'FAILED', 'CANCELLED'];
 
 /** 轮询导出行至终态（经 /deliver/export/list 单条筛出） */
 export async function awaitExportTerminal(
@@ -356,6 +364,42 @@ export async function archiveVersion(
 /** DRAFT → ITERATING（回调链首版状态编排同款） */
 export async function toIterating(ctx: TestContext, deckId: string, userId: string): Promise<void> {
   await ctx.get(DeckDomainService).onFirstVersionCreated(deckId, userId);
+}
+
+/**
+ * 铺底历史任务行（ADR-018：dl_generation_task 停写——网关时代遗留形态直插，
+ * 供 TASK 历史只读扫描/进行中任务守卫/withLatestTask 历史审计读测试）。
+ */
+export async function seedHistoricalTask(
+  ctx: TestContext,
+  deckId: string,
+  userId: string,
+  taskStatus = 'SUCCEEDED',
+  taskType = 'FULL_GENERATE',
+): Promise<string> {
+  const taskId = `hist-${Date.now().toString(36)}-${(seedSeq += 1)}`;
+  const now = new Date();
+  await ctx.dataSource().query(
+    `INSERT INTO dl_generation_task
+      (task_id, task_code, deck_id, user_id, task_type, task_status, instruction_snapshot,
+       channel_code, model_code,
+       data_version, delete_sign, created_by, created_name, created_time, updated_by, updated_name, updated_time)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,0,0,$10,$10,$11,$10,$10,$11)`,
+    [
+      taskId,
+      `GT${Date.now().toString(36)}${seedSeq}`,
+      deckId,
+      userId,
+      taskType,
+      taskStatus,
+      JSON.stringify({ topic: '历史任务' }),
+      'MOCK',
+      'MOCK-LITE',
+      userId,
+      now,
+    ],
+  );
+  return taskId;
 }
 
 /* ------------------------------------------------------------------ */

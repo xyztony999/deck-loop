@@ -44,10 +44,10 @@ describe('migrate-mongo-to-pg（纯函数 + pg-mem 全链）', () => {
     await destroy();
   });
 
-  it('表清单覆盖全部 11 张物理表且主键齐备', () => {
+  it('表清单覆盖全部 10 张物理表且主键齐备（ADR-018：−channel 两表 +dl_api_token）', () => {
     expect(TABLES.map((t) => t.table).sort()).toEqual(
       [
-        'dl_account', 'dl_asset', 'dl_brand_kit', 'dl_channel', 'dl_channel_preference',
+        'dl_account', 'dl_api_token', 'dl_asset', 'dl_brand_kit',
         'dl_deck', 'dl_deck_version', 'dl_export_task', 'dl_generation_task',
         'dl_prompt_template', 'dl_usage_record',
       ].sort(),
@@ -161,17 +161,17 @@ describe('migrate-mongo-to-pg（纯函数 + pg-mem 全链）', () => {
   });
 
   it('dry-run：不写目标', async () => {
-    const spec = TABLES.find((t) => t.table === 'dl_channel_preference')!;
-    const before = await countTarget(pg, 'dl_channel_preference');
+    const spec = TABLES.find((t) => t.table === 'dl_api_token')!;
+    const before = await countTarget(pg, 'dl_api_token');
     const result = await migrateTable(
-      [{ _id: 'x', preference_id: 'p1', user_id: 'u9', preference_map: { OUTLINE: { channelCode: 'MOCK' } } }],
+      [{ _id: 'x', token_id: 'tok1', user_id: 'u9', token_name: '历史', token_prefix: 'dlpat_abcdef', token_hash: 'a'.repeat(64) }],
       pg,
       spec,
       { dryRun: true },
     );
     expect(result.toWrite).toBe(1);
-    expect(result.sample?.preference_id).toBe('p1');
-    expect(await countTarget(pg, 'dl_channel_preference')).toBe(before);
+    expect(result.sample?.token_id).toBe('tok1');
+    expect(await countTarget(pg, 'dl_api_token')).toBe(before);
   });
 
   it('目标表无列时显式报错（提示先 init-schema）', async () => {

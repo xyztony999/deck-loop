@@ -41,7 +41,7 @@ describe('deck-loop v3 skeleton（AppModule 装配）', () => {
     expect(emitter).toBeInstanceOf(EventEmitter2);
   });
 
-  it('全局 AuthGuard 行为：@Public 跳过 / 未提供 verifier → 会话过期 BizException', () => {
+  it('全局 AuthGuard 行为：@Public 跳过 / 未提供 verifier → 会话过期 BizException / 双凭证回落', async () => {
     const guard = new AuthGuard(new Reflector(), null);
 
     class PublicFixture {
@@ -66,19 +66,19 @@ describe('deck-loop v3 skeleton（AppModule 装配）', () => {
 
     // @Public() 跳过认证
     expect(
-      guard.canActivate(makeContext(PublicFixture.prototype.handler, PublicFixture, {})),
+      await guard.canActivate(makeContext(PublicFixture.prototype.handler, PublicFixture, {})),
     ).toBe(true);
 
     // 未提供 verifier（platform 域未挂载时）→ BIZ_AUTH_SESSION_EXPIRED
-    expect(() =>
+    await expect(
       guard.canActivate(
         makeContext(ProtectedFixture.prototype.handler, ProtectedFixture, {
           'x-auth-token': 't0',
         }),
       ),
-    ).toThrow(BizException);
+    ).rejects.toThrow(BizException);
     try {
-      guard.canActivate(
+      await guard.canActivate(
         makeContext(ProtectedFixture.prototype.handler, ProtectedFixture, {
           'x-auth-token': 't0',
         }),
@@ -89,46 +89,67 @@ describe('deck-loop v3 skeleton（AppModule 装配）', () => {
       expect((error as BizException).code).toBe(AUTH_SESSION_EXPIRED);
     }
 
+    // 两者皆无 → BIZ_AUTH_SESSION_EXPIRED（06 §8.1）
+    try {
+      await guard.canActivate(
+        makeContext(ProtectedFixture.prototype.handler, ProtectedFixture, {}),
+      );
+      fail('should throw');
+    } catch (error) {
+      expect((error as BizException).code).toBe(AUTH_SESSION_EXPIRED);
+    }
+
     // verifier 校验失败 → 同码；成功 → request.user = {userId, accountId}
     const okVerifier: AuthTokenVerifier = {
       verify: (token: string) => (token === 'good' ? { userId: 'u1', accountId: 'acc1' } : null),
     };
     const guardWithVerifier = new AuthGuard(new Reflector(), okVerifier);
     let principal: AuthPrincipal | undefined;
-    const badCtx = {
-      getHandler: () => ProtectedFixture.prototype.handler,
-      getClass: () => ProtectedFixture,
-      switchToHttp: () => ({
-        getRequest: () => ({
-          headers: { 'x-auth-token': 'bad' },
-          get user() {
-            return principal;
-          },
-          set user(v: AuthPrincipal | undefined) {
-            principal = v;
-          },
+    const ctxWithHeaders = (headers: Record<string, string>): ExecutionContext =>
+      ({
+        getHandler: () => ProtectedFixture.prototype.handler,
+        getClass: () => ProtectedFixture,
+        switchToHttp: () => ({
+          getRequest: () => ({
+            headers,
+            get user() {
+              return principal;
+            },
+            set user(v: AuthPrincipal | undefined) {
+              principal = v;
+            },
+          }),
         }),
-      }),
-    } as unknown as ExecutionContext;
-    expect(() => guardWithVerifier.canActivate(badCtx)).toThrow(BizException);
+      }) as unknown as ExecutionContext;
+    await expect(
+      guardWithVerifier.canActivate(ctxWithHeaders({ 'x-auth-token': 'bad' })),
+    ).rejects.toThrow(BizException);
 
-    const goodCtx = {
-      getHandler: () => ProtectedFixture.prototype.handler,
-      getClass: () => ProtectedFixture,
-      switchToHttp: () => ({
-        getRequest: () => ({
-          headers: { 'x-auth-token': 'good' },
-          get user() {
-            return principal;
-          },
-          set user(v: AuthPrincipal | undefined) {
-            principal = v;
-          },
-        }),
-      }),
-    } as unknown as ExecutionContext;
-    expect(guardWithVerifier.canActivate(goodCtx)).toBe(true);
+    expect(await guardWithVerifier.canActivate(ctxWithHeaders({ 'x-auth-token': 'good' }))).toBe(true);
     expect(principal).toEqual({ userId: 'u1', accountId: 'acc1' });
+
+    // 双凭证回落（ADR-018）：无会话头 + X-Api-Token → ApiTokenVerifier；
+    // 会话优先（同时携带时走会话）；token 无效 → BIZ_AUTH_TOKEN_INVALID
+    const apiVerifier = {
+      verify: async (token: string) =>
+        token === 'dlpat_good' ? { userId: 'u2', accountId: 'u2' } : null,
+    };
+    const dualGuard = new AuthGuard(new Reflector(), okVerifier, apiVerifier);
+    expect(await dualGuard.canActivate(ctxWithHeaders({ 'x-api-token': 'dlpat_good' }))).toBe(true);
+    expect(principal).toEqual({ userId: 'u2', accountId: 'u2', via: 'api-token' });
+    // 会话优先：会话有效时不消费 api token
+    expect(
+      await dualGuard.canActivate(
+        ctxWithHeaders({ 'x-auth-token': 'good', 'x-api-token': 'dlpat_bad' }),
+      ),
+    ).toBe(true);
+    expect(principal).toEqual({ userId: 'u1', accountId: 'acc1' });
+    try {
+      await dualGuard.canActivate(ctxWithHeaders({ 'x-api-token': 'dlpat_bad' }));
+      fail('should throw');
+    } catch (error) {
+      expect((error as BizException).code).toBe('BIZ_AUTH_TOKEN_INVALID');
+    }
   });
 
   it('BizExceptionFilter 行为：业务码/校验消息/未知异常 → Result（HTTP 200）', () => {

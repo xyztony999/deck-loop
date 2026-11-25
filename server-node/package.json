@@ -19,7 +19,8 @@
     "start:dev": "nest start --watch",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --watchman=false",
     "init-schema": "tsx src/scripts/init-schema.ts",
-    "migrate:mongo-to-pg": "tsx scripts/migrate-mongo-to-pg.ts"
+    "migrate:mongo-to-pg": "tsx scripts/migrate-mongo-to-pg.ts",
+    "migrate:web-agent": "tsx scripts/migrate-web-agent.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.6",
@@ -30,6 +31,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "eventemitter2": "^6.4.9",
+    "express": "4.22.1",
     "multer": "2.0.2",
     "pg": "^8.13.1",
     "reflect-metadata": "^0.2.2",
@@ -39,6 +41,7 @@
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
     "@nestjs/testing": "^10.4.6",
+    "@types/express": "^4.17.21",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",

@@ -1,14 +1,16 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsIn,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
 import { getVersionSourceTypeLabel } from '../common/enums';
 import { OperItem, SelectOption } from '../common/result';
@@ -127,6 +129,88 @@ export class VersionForkAO {
   @IsNotEmpty({ message: 'branchName不能为空' })
   @MaxLength(50, { message: 'branchName长度不能超过50' })
   branchName!: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* AO/VO — agent 直写（POST /ver/version/agent-create；api-web-agent §4.2，ADR-018） */
+/* ------------------------------------------------------------------ */
+
+/** 定向调整作用域（scope 提供即 TARGETED_ADJUST；pageId 必填，blockId 可选=块级） */
+export class AgentCreateScopeAO {
+  @IsString({ message: 'scope.pageId不能为空' })
+  @IsNotEmpty({ message: 'scope.pageId不能为空' })
+  pageId!: string;
+
+  @IsOptional()
+  @Transform(blankToUndefined)
+  @IsString()
+  blockId?: string;
+}
+
+/**
+ * agent 直写版本 AO（**仅 X-Api-Token**；唯一内容写入口）。
+ * content 契约沿用 api-version §4.1（pages[]→blocks[]）；深层形状/页数/体积
+ * 红线在 VersionAgentService 守卫（不可信输入，BIZ_VERSION_TARGET_INVARIANCE）。
+ */
+export class AgentCreateAO {
+  @IsString({ message: 'deckId不能为空' })
+  @Matches(ID_PATTERN, { message: 'deckId格式不合法' })
+  deckId!: string;
+
+  /** 页面树快照（整稿；pages 1~200，JSON ≤2MB env AGENT_CONTENT_MAX_MB） */
+  @IsObject({ message: 'content必须为JSON对象' })
+  content!: Record<string, unknown>;
+
+  /** 本次生成/调整指令（≤2000 字；落 instruction_snapshot.instruction） */
+  @IsString({ message: 'instruction不能为空' })
+  @IsNotEmpty({ message: 'instruction不能为空' })
+  @MaxLength(2000, { message: 'instruction长度不能超过2000' })
+  instruction!: string;
+
+  /** 父版本（可空；缺省=deck.current_version_id；非空须同 deck 存在 INV-13） */
+  @IsOptional()
+  @Transform(blankToUndefined)
+  @Matches(ID_PATTERN, { message: 'parentVersionId格式不合法' })
+  parentVersionId?: string;
+
+  /** 分支名（≤50；缺省=活动分支；≠活动分支=分叉留档，同 deck 唯一 INV-12） */
+  @IsOptional()
+  @Transform(blankToUndefined)
+  @IsString()
+  @MaxLength(50, { message: 'branchName长度不能超过50' })
+  branchName?: string;
+
+  /** 定向作用域（提供即 TARGETED_ADJUST） */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AgentCreateScopeAO)
+  scope?: AgentCreateScopeAO;
+}
+
+/** agent 直写回执 VO（api-web-agent §4.2：versionId/versionSeq/sourceType/taskId/branchName） */
+export class AgentCreateVO {
+  versionId!: string;
+  versionSeq!: number;
+  sourceType!: string;
+  /** 合成任务 id（agent-<snowflake>，不建 dl_generation_task 行） */
+  taskId!: string;
+  branchName!: string;
+
+  static of(
+    versionId: string,
+    versionSeq: number,
+    sourceType: string,
+    taskId: string,
+    branchName: string,
+  ): AgentCreateVO {
+    const vo = new AgentCreateVO();
+    vo.versionId = versionId;
+    vo.versionSeq = versionSeq;
+    vo.sourceType = sourceType;
+    vo.taskId = taskId;
+    vo.branchName = branchName;
+    return vo;
+  }
 }
 
 /* ------------------------------------------------------------------ */

@@ -15,7 +15,7 @@ import type { SyncChangeOpCode } from '../../common/enums/sync-change-op';
  * providers: [{ provide: SYNC_CHANGE_SCANNER, useClass: DeckSyncChangeScanner }]
  * ```
  * 不注册的聚合在 /auth/sync/pull 结果中缺席（并行生成期优雅降级）。
- * TASK 聚合由 platform 内置实现（dl_generation_task 同表共治，D1）。
+ * TASK 聚合由 platform 内置实现（ADR-018 起历史只读：dl_generation_task 停写，历史行仍可拉取；PREFERENCE 随渠道域退役移除）。
  *
  * ## 游标口径（06 §3.6）
  * - cursor = 本聚合行 updated_time 的**毫秒值**（写时分配，不做秒级截断）；
@@ -33,7 +33,7 @@ import type { SyncChangeOpCode } from '../../common/enums/sync-change-op';
  * 否则下一请求严格 $gt cursor 会漏掉同毫秒剩余行。
  */
 export interface SyncChangeScanner {
-  /** 聚合标识：DECK/VERSION/TASK/ASSET/BRANDKIT/PROMPT/PREFERENCE/EXPORT */
+  /** 聚合标识：DECK/VERSION/TASK/ASSET/BRANDKIT/PROMPT/EXPORT */
   readonly aggregate: string;
 
   /**
@@ -91,7 +91,7 @@ export interface SyncScanResult {
 
 /** 单条变更（/auth/sync/pull changes[] 元素的服务端形态） */
 export interface SyncChangeItem {
-  /** 聚合标识（DECK/VERSION/TASK/ASSET/BRANDKIT/PROMPT/PREFERENCE/EXPORT） */
+  /** 聚合标识（DECK/VERSION/TASK/ASSET/BRANDKIT/PROMPT/EXPORT） */
   aggregate: string;
   /** 变更类型：SyncChangeOp（UPSERT/DELETE） */
   op: SyncChangeOpCode;

@@ -1,6 +1,6 @@
 /**
- * platform 域错误码 —— 契约来源：api-platform.md §3.4（v1 冻结，禁增删改值）。
- * 两前缀（对应 v1 PlatformErrorCodeConstants）：BIZ_AUTH_*（账号）/ BIZ_GW_*（网关）。
+ * platform 域错误码 —— 契约来源：api-platform.md §3.4 + api-web-agent.md §3.4
+ * （ADR-018 增量：BIZ_GW_* 族随 AI 网关退役；新增 BIZ_AUTH_TOKEN_INVALID）。
  *
  * 唯一 re-export：AUTH_SESSION_EXPIRED 常量落 common/exceptions.ts（认证基础设施，
  * guard/filter/decorator 三处引用，依赖倒置避免 common→platform 反向依赖）——
@@ -20,16 +20,5 @@ export const AUTH_EMAIL_EXISTS_MSG = '邮箱已注册';
 /** BIZ_AUTH_SESSION_EXPIRED：会话缺失/过期（唯一真源 common/exceptions.ts，此处契约 re-export） */
 export { AUTH_SESSION_EXPIRED, AUTH_SESSION_EXPIRED_MSG } from '../common/exceptions';
 
-/* ---------- BIZ_GW_*（AI 网关，P-01） ---------- */
-
-/** BIZ_GW_PROVIDER_TIMEOUT：渠道调用超时 */
-export const GW_PROVIDER_TIMEOUT = 'BIZ_GW_PROVIDER_TIMEOUT';
-export const GW_PROVIDER_TIMEOUT_MSG = '渠道调用超时，请稍后重试';
-
-/** BIZ_GW_PROVIDER_FAILED：渠道调用失败（适配器错误） */
-export const GW_PROVIDER_FAILED = 'BIZ_GW_PROVIDER_FAILED';
-export const GW_PROVIDER_FAILED_MSG = '渠道调用失败';
-
-/** BIZ_GW_QUOTA_EXCEEDED：超出用量配额（INV-25 并发/配额约束） */
-export const GW_QUOTA_EXCEEDED = 'BIZ_GW_QUOTA_EXCEEDED';
-export const GW_QUOTA_EXCEEDED_MSG = '超出用量配额';
+/** BIZ_AUTH_TOKEN_INVALID：个人 API token 缺头/格式错/哈希不匹配/过期/吊销统一码（防枚举，api-web-agent §3.4；唯一真源 common/exceptions.ts，此处契约 re-export） */
+export { AUTH_TOKEN_INVALID, AUTH_TOKEN_INVALID_MSG } from '../common/exceptions';

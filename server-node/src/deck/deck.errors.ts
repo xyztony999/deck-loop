@@ -19,3 +19,7 @@ export const DECK_NOT_FOUND_MSG = '创作物不存在';
 /** BIZ_DECK_TASK_RUNNING：存在进行中的生成/调整任务，动作被拒（finalize/archive 等） */
 export const DECK_TASK_RUNNING = 'BIZ_DECK_TASK_RUNNING';
 export const DECK_TASK_RUNNING_MSG = '存在进行中的任务，请稍后再试';
+
+/** BIZ_DECK_OUTLINE_INVALID：大纲保存守卫拒绝（非 DRAFT 态/节点校验失败；api-web-agent §3.4，ADR-018 替代原 BIZ_TASK_SCOPE_INVALID 语义） */
+export const DECK_OUTLINE_INVALID = 'BIZ_DECK_OUTLINE_INVALID';
+export const DECK_OUTLINE_INVALID_MSG = '大纲不合法或当前状态不可编辑';

@@ -40,9 +40,10 @@ export interface VersionDeckStats {
  * 版本留档应用服务（v1 VersionArchiveWriter + VersionDomainServiceImpl 合一平移；
  * manifest §10 跨域契约承载类——VersionArchiveService）。
  *
- * **版本写入唯一入口（api-version §3.2）**：createVersionFromTask 仅由任务成功
- * 回调路径调用（generation 域）；insertAndAdvance 为域内共享写组件（fork 复制行
- * 共用）——「禁止任何 update content 的接口存在」指对外接口无 update 语义，
+ * **版本写入唯一入口（api-version §3.2 / 06 §8.2，ADR-018）**：createVersionFromTask
+ * 仅由 agent 直写编排调用（线上 VersionAgentService / 本地 MCP version_create 同一
+ * 服务同一事务）；insertAndAdvance 为域内共享写组件（fork 复制行共用）——
+ * 「禁止任何 update content 的接口存在」指对外接口无 update 语义，
  * fork 为指针编排的域内插入动作，不违背 INV-11。
  *
  * ## 编排步骤（含 fork 分支链）
@@ -85,7 +86,7 @@ export class VersionArchiveService {
   /* ------------------------------------------------------------------ */
 
   /**
-   * 版本留档（generation 任务成功回调路径唯一写入口）。
+   * 版本留档（agent 直写路径唯一写入口，06 §8.2 红线）。
    * 命令契约见 VersionArchiveCommand 注释；返回 { versionId, versionSeq }。
    */
   async createVersionFromTask(command: VersionArchiveCommand): Promise<VersionArchiveResult> {

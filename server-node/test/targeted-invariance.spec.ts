@@ -1,4 +1,4 @@
-import { assertTargetedInvariance } from '../src/generation/targeted-invariance';
+import { assertTargetedInvariance } from '../src/version/targeted-invariance';
 
 /**
  * F02b（功能核查 2026-10-20）：定向调整非目标不变性校验单测。

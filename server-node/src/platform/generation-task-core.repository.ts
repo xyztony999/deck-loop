@@ -16,52 +16,17 @@ export interface GenerationTaskCoreRow {
 }
 
 /**
- * 生成任务网关侧仓储（dl_generation_task 同表共治，决策 D1；ADR-016 SQL）。
+ * 生成任务历史只读仓储（dl_generation_task，ADR-016 SQL；ADR-018 网关退役后
+ * **任务表停写**——原网关侧条件推进/计量回填写路径随 P-01 删除，仅保留
+ * TASK 聚合同步扫描（历史行对账，06 §3.6）。
  *
- * 权威 entity 归 generation 域（GenerationTask）；本网关侧以 dataSource 对同表做
- * 条件 UPDATE 与游标 SELECT（不重复建索引）。白名单映射（NR-02）：
- * - advanceToRunning: { task_id, task_status='QUEUED' } 条件更新（幂等键=taskId+期望前置状态）
- * - backfillUsage:    { task_id } SET prompt_tokens/completion_tokens/updated_time
- * - fallbackAdvanceFailed: { task_id, task_status='RUNNING' } 条件推进 FAILED
- * - scanUpdatedAfter: { user_id, updated_time 复合游标 }（06 §3.6）
+ * 权威 entity 归 platform/schemas/dl_generation_task.schema（历史保留）；
+ * 本仓储以 dataSource 对同表做游标 SELECT（不重复建索引）。
+ * 白名单映射（NR-02）：scanUpdatedAfter: { user_id, updated_time 复合游标 }。
  */
 @Injectable()
 export class GenerationTaskCoreRepository {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
-
-  /** QUEUED→RUNNING 条件推进：返回是否抢到（false=已取消/已推进，重复投递安全） */
-  async advanceToRunning(taskId: string): Promise<boolean> {
-    const result = await this.dataSource
-      .createQueryBuilder()
-      .update(GENERATION_TASK_CORE_TABLE)
-      .set({ task_status: 'RUNNING', updated_time: () => 'now()' })
-      .where('task_id = :taskId', { taskId })
-      .andWhere('task_status = :queued', { queued: 'QUEUED' })
-      .execute();
-    return (result.affected ?? 0) > 0;
-  }
-
-  /** 计量回填（prompt/completion tokens；updated_time 推进供同步游标派生） */
-  async backfillUsage(taskId: string, promptTokens: number, completionTokens: number): Promise<void> {
-    await this.dataSource
-      .createQueryBuilder()
-      .update(GENERATION_TASK_CORE_TABLE)
-      .set({ prompt_tokens: promptTokens, completion_tokens: completionTokens, updated_time: () => 'now()' })
-      .where('task_id = :taskId', { taskId })
-      .execute();
-  }
-
-  /** RUNNING→FAILED 兜底推进（仅编排崩溃路径；errorMsg 截断 512，对齐 v1 DDL VARCHAR(512)） */
-  async fallbackAdvanceFailed(taskId: string, reason: string): Promise<void> {
-    const truncated = reason.length <= 512 ? reason : reason.slice(0, 512);
-    await this.dataSource
-      .createQueryBuilder()
-      .update(GENERATION_TASK_CORE_TABLE)
-      .set({ task_status: 'FAILED', error_msg: truncated, updated_time: () => 'now()' })
-      .where('task_id = :taskId', { taskId })
-      .andWhere('task_status = :running', { running: 'RUNNING' })
-      .execute();
-  }
 
   /**
    * TASK 聚合同步扫描（F07 复合游标）：user_id + (updated_time, task_id) 全序推进——

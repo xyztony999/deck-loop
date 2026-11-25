@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
   IsBoolean,
@@ -11,6 +12,7 @@ import {
   Matches,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import {
   DeckStatus,
@@ -223,6 +225,66 @@ export class DeckUnfinalizeAO extends DeckActionAO {
   /** 二次确认（必须 true；false/缺省在 Service 层守卫拒绝） */
   @IsBoolean({ message: 'confirm不能为空' })
   confirm!: boolean;
+}
+
+/* ------------------------------------------------------------------ */
+/* AO — 大纲保存（POST /deck/deck/outline-save；api-web-agent §4.3，     */
+/* ADR-018 自 /gen/outline/save 迁入，AO/VO 逐字沿用原 generation 契约） */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 大纲节点 AO（原 generation.dto OutlineNodeAO 逐字平移；
+ * `[{nodeId,title,points[],note,pageHint}]`）。
+ * 持久化形态为 Deck.draft_outline 节点树（数组顶层）。
+ */
+export class OutlineNodeAO {
+  /** 节点 ID（可空：空由保存时按序生成 n1/n2/...） */
+  @IsOptional()
+  @Transform(blankToUndefined)
+  @IsString()
+  @MaxLength(32, { message: '节点ID不能超过32字符' })
+  nodeId?: string;
+
+  /** 节点标题（≤50 字） */
+  @IsString({ message: '节点标题不能为空' })
+  @IsNotEmpty({ message: '节点标题不能为空' })
+  @MaxLength(50, { message: '节点标题不能超过50字' })
+  title!: string;
+
+  /** 要点列表（每条 ≤200 字符） */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true, message: '要点必须为字符串' })
+  @MaxLength(200, { each: true, message: '要点不能超过200字符' })
+  points?: string[];
+
+  /** 备注（≤500） */
+  @IsOptional()
+  @Transform(blankToUndefined)
+  @IsString()
+  @MaxLength(500, { message: '节点备注不能超过500字符' })
+  note?: string;
+
+  /** 页数提示（该节点建议占页数） */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: '页数提示必须为整数' })
+  pageHint?: number;
+}
+
+/** 保存大纲编辑 AO（POST /deck/deck/outline-save；节点 1~50、title ≤50（OutlineNodeAO 级联校验） */
+export class OutlineSaveAO {
+  @IsString({ message: '创作物ID不能为空' })
+  @Matches(ID_PATTERN, { message: '创作物ID格式不合法' })
+  deckId!: string;
+
+  /** 大纲节点树（1~50 节点；DRAFT 态可编辑，首版生成后只读——Service 层守卫） */
+  @IsArray({ message: '大纲节点不能为空' })
+  @ArrayNotEmpty({ message: '大纲节点不能为空' })
+  @ArrayMaxSize(50, { message: '大纲节点不能超过50个' })
+  @ValidateNested({ each: true })
+  @Type(() => OutlineNodeAO)
+  outline!: OutlineNodeAO[];
 }
 
 /* ------------------------------------------------------------------ */

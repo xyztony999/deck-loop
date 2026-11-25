@@ -6,18 +6,20 @@
  * INV-1 指针回写 FINALIZED 拒（rollback 通道）、INV-3 FINALIZED/ARCHIVED 禁建任务、
  * 进行中任务归档被拒。
  *
- * 状态推进到 ITERATING/FINALIZED 依赖版本存在——版本经回调链同款领域写路径
- * （archiveVersion/toIterating）同步铺底，异步网关链在 generation 域测试覆盖。
+ * 状态推进到 ITERATING/FINALIZED 依赖版本存在——版本经 agent 直写同款领域写路径
+ * （archiveVersion/toIterating）同步铺底；agent-create 端点链在 agent-create.spec 覆盖。
+ * ADR-018：dl_generation_task 历史只读——进行中任务守卫以历史行铺底验证。
  */
 import {
   TestContext,
   archiveVersion,
-  awaitTaskTerminal,
-  awaitUntil,
   createDeck,
+  issueToken,
   okData,
   bizFail,
   postJson,
+  postWithToken,
+  seedHistoricalTask,
   textPageContent,
   toIterating,
 } from './helpers/testing-app';
@@ -273,8 +275,9 @@ describe('deck 域状态机（DeckManageFlowTest 对齐）', () => {
   // INV-3：FINALIZED/ARCHIVED 创建生成任务被拒
   // ------------------------------------------------------------------
 
-  it('任务守卫-FINALIZED/ARCHIVED 创建生成任务被拒（INV-3）', async () => {
+  it('内容写守卫-FINALIZED/ARCHIVED agent 直写被拒（INV-3，ADR-018 迁 agent-create）', async () => {
     const session = await ctx.newSession();
+    const { token } = await issueToken(ctx, session);
 
     const finalizedDeck = await createDeck(ctx, session);
     await archiveVersion(ctx, finalizedDeck, session.userId, textPageContent('p1', 'b1', 'v1'));
@@ -287,13 +290,13 @@ describe('deck 域状态机（DeckManageFlowTest 对齐）', () => {
       '定稿',
     );
     bizFail(
-      await postJson(ctx, session, '/gen/full/generate', {
+      await postWithToken(ctx, token, '/ver/version/agent-create', {
         deckId: finalizedDeck,
-        useDraft: true,
-        outlineSnapshot: '[{"nodeId":"n1","title":"t"}]',
+        instruction: '定稿后写版本',
+        content: textPageContent('p1', 'b1', 'v2'),
       }),
       'BIZ_DECK_STATUS_FORBIDDEN',
-      'FINALIZED 禁建任务',
+      'FINALIZED 禁内容写入',
     );
 
     const archivedDeck = await createDeck(ctx, session);
@@ -302,49 +305,33 @@ describe('deck 域状态机（DeckManageFlowTest 对齐）', () => {
       '归档',
     );
     bizFail(
-      await postJson(ctx, session, '/gen/full/generate', {
+      await postWithToken(ctx, token, '/ver/version/agent-create', {
         deckId: archivedDeck,
-        useDraft: true,
-        outlineSnapshot: '[{"nodeId":"n1","title":"t"}]',
+        instruction: '归档后写版本',
+        content: textPageContent('p1', 'b1', 'v1'),
       }),
       'BIZ_DECK_STATUS_FORBIDDEN',
-      'ARCHIVED 禁建任务',
+      'ARCHIVED 禁内容写入',
     );
   });
 
-  it('归档守卫-存在进行中任务时归档被拒（BIZ_DECK_TASK_RUNNING）', async () => {
+  it('归档守卫-历史进行中任务行存在时归档被拒（BIZ_DECK_TASK_RUNNING，任务表历史只读）', async () => {
     const session = await ctx.newSession();
     const deckId = await createDeck(ctx, session);
-    // 发起整稿生成（Mock 网关异步执行中，QUEUED/RUNNING 窗口内归档应被拒）
-    const submit = okData(
-      await postJson(ctx, session, '/gen/full/generate', {
-        deckId,
-        outlineSnapshot: '[{"nodeId":"n1","title":"t"}]',
-      }),
-      '发起生成',
-    );
-
-    // 同步等待任务进入 RUNNING（MOCK 适配器 300-800ms 窗口）再归档——
-    // 消除「提交后立即归档」与网关 QUEUED→RUNNING 推进之间的竞态（pg-mem 同步执行尤甚）
-    await awaitUntil(
-      async () => {
-        const rows = await ctx.dataSource().query(
-          'SELECT task_status FROM dl_generation_task WHERE task_id = $1',
-          [submit.taskId],
-        );
-        return rows[0]?.task_status === 'RUNNING';
-      },
-      10_000,
-      '任务进入 RUNNING',
-    );
+    // ADR-018：dl_generation_task 停写（历史审计只读）——守卫仍读历史行。
+    // 铺底一条历史 RUNNING 任务行（网关时代遗留形态），验证守卫对历史数据生效。
+    const taskId = await seedHistoricalTask(ctx, deckId, session.userId, 'RUNNING');
     bizFail(
       await postJson(ctx, session, '/deck/deck/archive', { deckId }),
       'BIZ_DECK_TASK_RUNNING',
-      '进行中任务归档被拒',
+      '历史进行中任务归档被拒',
     );
 
-    // 等任务终态后归档放行（Mock 任务成功后 deck 转 ITERATING，归档合法）
-    await awaitTaskTerminal(ctx, session, submit.taskId, 20_000);
+    // 历史行推进终态（只读审计口径下的状态快照修正）后归档放行
+    await ctx.dataSource().query(
+      `UPDATE dl_generation_task SET task_status = 'SUCCEEDED', updated_time = $2 WHERE task_id = $1`,
+      [taskId, new Date()],
+    );
     okData(await postJson(ctx, session, '/deck/deck/archive', { deckId }), '终态后归档');
   });
 });

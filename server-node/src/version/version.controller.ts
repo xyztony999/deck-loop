@@ -1,7 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/guards/auth.guard';
 import { Result } from '../common/result';
+import { ApiTokenGuard } from '../platform/api-token.guard';
 import {
+  AgentCreateAO,
+  AgentCreateVO,
   VersionCompareAO,
   VersionCompareVO,
   VersionDetailAO,
@@ -11,6 +15,7 @@ import {
   VersionTreeAO,
   VersionTreeVO,
 } from './version.dto';
+import { VersionAgentService } from './version.agent-service';
 import { VersionManageService } from './version.manage-service';
 
 /**
@@ -24,7 +29,26 @@ import { VersionManageService } from './version.manage-service';
  */
 @Controller('ver/version')
 export class VersionController {
-  constructor(private readonly versionManageService: VersionManageService) {}
+  constructor(
+    private readonly versionManageService: VersionManageService,
+    private readonly versionAgentService: VersionAgentService,
+  ) {}
+
+  /**
+   * 0. agent 直写版本（api-web-agent §4.2，ADR-018 唯一内容写入口）：
+   * **仅 X-Api-Token**——@Public() 旁路全局会话守卫 + ApiTokenGuard 独立校验；
+   * 网站会话不可调用（网站无内容写入口，ADR-018 §4.6）。
+   */
+  @Public()
+  @UseGuards(ApiTokenGuard)
+  @Post('agent-create')
+  @HttpCode(HttpStatus.OK)
+  async agentCreate(
+    @Body() ao: AgentCreateAO,
+    @CurrentUser('userId') userId: string,
+  ): Promise<Result<AgentCreateVO>> {
+    return Result.success(await this.versionAgentService.agentCreate(ao, userId));
+  }
 
   /** 1. 版本谱系树：tree（节点递归）+ branches（分支列表），branchScope=ALL/ACTIVE 默认 ACTIVE */
   @Post('tree')

@@ -1,20 +1,20 @@
 /**
- * platform 域账号/同步集成测试（v1 PlatformAuthSyncTest 平移，业务预期不变）。
+ * platform 域账号/同步集成测试（v1 PlatformAuthSyncTest 平移 + ADR-018 收窄）。
  *
  * 覆盖：注册守卫（重复 email BIZ_AUTH_EMAIL_EXISTS / 非法 email）、
  * 登录（错密码/未注册 BIZ_AUTH_CREDENTIALS；5 次失败锁定 10 分钟）、
  * profile（新 token 半期内不重签 refreshedToken 空；改昵称）、
  * 登出撤销（原 token 失效）、无 token 拉取拒绝、
- * sync/pull（TASK+VERSION 聚合 / 游标分页边界 / 毫秒不重投——v3 复合游标
- * 改进点重点验：游标推进后增量严格为空，v1 该用例因 H2 毫秒截断重投 @Disabled）、
- * 回调后用量入账（dl_usage_record）。
+ * sync/pull（DECK/VERSION 活跃 + TASK 历史只读 / 游标分页边界 / 毫秒不重投；
+ * PREFERENCE 聚合随渠道域退役缺席）、
+ * 历史审计读（deck detail withLatestTask 读 dl_generation_task 历史行）。
  *
- * SSE（GET /gw/task/stream）为连接型端点，不在 supertest 集成测试范围（跳过，注明）。
+ * ADR-018：网关退役——SSE/用量入账链随模块删除；个人 token 三端点见 api-token.spec。
  */
 import request from 'supertest';
 import {
   TestContext,
-  awaitTaskTerminal,
+  archiveVersion,
   createDeck,
   okData,
   bizFail,
@@ -22,9 +22,10 @@ import {
   WRONG_PASSWORD,
   postPublic,
   postJson,
+  seedHistoricalTask,
+  textPageContent,
+  toIterating,
 } from './helpers/testing-app';
-
-const AWAIT_MS = 20_000;
 
 describe('platform 域账号与同步（PlatformAuthSyncTest 对齐）', () => {
   let ctx: TestContext;
@@ -169,20 +170,14 @@ describe('platform 域账号与同步（PlatformAuthSyncTest 对齐）', () => {
   // sync pull（游标）
   // ------------------------------------------------------------------
 
-  it('同步-建 deck→任务→版本后 pull 聚合出现 TASK+VERSION；游标推进后增量严格为空（毫秒不重投）', async () => {
+  it('同步-建 deck→版本→历史任务行后 pull 出现 VERSION+TASK（PREFERENCE 退役缺席）；游标推进后增量严格为空', async () => {
     const session = await ctx.newSession('sync');
 
-    // 造变更：deck + 生成任务（成功回调 → 版本留档）
+    // 造变更：deck + 版本（agent 直写同款领域写路径）+ 历史任务行（TASK 历史只读扫描）
     const deckId = await createDeck(ctx, session);
-    const submit = okData(
-      await postJson(ctx, session, '/gen/full/generate', {
-        deckId,
-        outlineSnapshot: '[{"nodeId":"n1","title":"t"}]',
-      }),
-      '生成任务',
-    );
-    const terminal = await awaitTaskTerminal(ctx, session, submit.taskId, AWAIT_MS);
-    expect(terminal.taskStatus).toBe('SUCCEEDED');
+    await archiveVersion(ctx, deckId, session.userId, textPageContent('p1', 'b1', 'v1'));
+    await toIterating(ctx, deckId, session.userId);
+    await seedHistoricalTask(ctx, deckId, session.userId);
 
     const pull1 = okData(
       await postJson(ctx, session, '/auth/sync/pull', { lastCursor: 0 }),
@@ -197,6 +192,8 @@ describe('platform 域账号与同步（PlatformAuthSyncTest 对齐）', () => {
     }
     expect(aggregates.has('TASK')).toBe(true);
     expect(aggregates.has('VERSION')).toBe(true);
+    // ADR-018：PREFERENCE 聚合随渠道域退役（dl_channel_preference 表删除）
+    expect(aggregates.has('PREFERENCE')).toBe(false);
     const newCursor: number = pull1.newCursor;
     expect(newCursor).toBeGreaterThan(0);
     expect(pull1.hasMore).toBe(false);
@@ -228,36 +225,23 @@ describe('platform 域账号与同步（PlatformAuthSyncTest 对齐）', () => {
     bizFail(noSessionRes.body, 'BIZ_AUTH_SESSION_EXPIRED', '无会话拉取拒绝');
   });
 
-  it('用量入账-SUCCEEDED 回调后 dl_usage_record 出现该 task 行（channel/model/tokens）', async () => {
-    const session = await ctx.newSession('usage');
+  it('历史审计-deck detail withLatestTask/withStats 读 dl_generation_task 历史行（ADR-018 只读保留）', async () => {
+    const session = await ctx.newSession('hist');
     const deckId = await createDeck(ctx, session);
+    const taskId = await seedHistoricalTask(ctx, deckId, session.userId, 'SUCCEEDED', 'FULL_ADJUST');
 
-    const submit = okData(
-      await postJson(ctx, session, '/gen/full/generate', {
+    const detail = okData(
+      await postJson(ctx, session, '/deck/deck/detail', {
         deckId,
-        outlineSnapshot: '[{"nodeId":"n1","title":"t"}]',
+        withStats: true,
+        withLatestTask: true,
       }),
-      '任务',
+      '历史审计详情',
     );
-    const taskId = submit.taskId;
-    const terminal = await awaitTaskTerminal(ctx, session, taskId, AWAIT_MS);
-    expect(terminal.taskStatus).toBe('SUCCEEDED');
-
-    const record = (
-      await ctx.dataSource().query('SELECT * FROM dl_usage_record WHERE task_id = $1', [taskId])
-    )[0] ?? null;
-    expect(record).not.toBeNull();
-    expect(record!.user_id).toBe(session.userId);
-    expect(record!.channel_code).toBe('MOCK');
-    expect(record!.model_code).toBe('MOCK-LITE');
-    expect(record!.task_type).toBe('FULL_GENERATE');
-    expect(record!.prompt_tokens).toBeGreaterThan(0);
-    expect(record!.completion_tokens).toBeGreaterThan(0);
+    expect(detail.latestTask).not.toBeNull();
+    expect(detail.latestTask.taskId).toBe(taskId);
+    expect(detail.latestTask.taskStatus).toBe('SUCCEEDED');
+    // 历史成功调整任务计入 adjustCount（任务表停写，历史行仍可统计）
+    expect(detail.stats.adjustCount).toBeGreaterThanOrEqual(1);
   });
 });
-
-/**
- * SSE（GET /gw/task/stream）为连接型端点：依赖长连接 + server-sent events 推流，
- * supertest/集成测试环境无法稳定消费事件流，跳过（与 v1 口径一致，
- * 由网关回调链与轮询端点 /gen/task/progress 覆盖同等信息面）。
- */

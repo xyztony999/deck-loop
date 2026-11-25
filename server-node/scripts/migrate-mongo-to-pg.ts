@@ -30,11 +30,14 @@ export interface TableSpec {
   pk: string;
 }
 
-/** 全部 11 张物理表（无外键约束，顺序仅为报告可读） */
+/**
+ * 全部 10 张物理表（无外键约束，顺序仅为报告可读）。
+ * ADR-018（web-mgmt-20261125）：dl_channel/dl_channel_preference 退役不再迁移
+ * （配置数据无审计价值，DROP 见 scripts/migrate-web-agent.ts）；+dl_api_token。
+ */
 export const TABLES: readonly TableSpec[] = [
   { table: 'dl_account', pk: 'account_id' },
-  { table: 'dl_channel', pk: 'channel_code' },
-  { table: 'dl_channel_preference', pk: 'preference_id' },
+  { table: 'dl_api_token', pk: 'token_id' },
   { table: 'dl_brand_kit', pk: 'brand_kit_id' },
   { table: 'dl_prompt_template', pk: 'template_id' },
   { table: 'dl_asset', pk: 'asset_id' },

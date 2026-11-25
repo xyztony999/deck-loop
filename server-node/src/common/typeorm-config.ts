@@ -8,24 +8,25 @@
  *
  * synchronize=false（生产红线：schema 由迁移脚本/DDL 管理，禁止应用自动改表）；
  * 测试经 pg-mem adapter 单独 synchronize=true（见 test/global-setup.ts）。
- * entities 显式枚举 11 张物理表权威 entity（只读投影侧不再独立 entity）。
+ * entities 显式枚举 10 张物理表权威 entity（ADR-018：11−dl_channel−dl_channel_preference
+ * +dl_api_token；dl_generation_task/dl_usage_record 保留历史只读；只读投影侧不独立 entity）。
  */
 import type { DataSourceOptions } from 'typeorm';
 import { Account } from '../platform/schemas/account.schema';
+import { ApiToken } from '../platform/schemas/api-token.schema';
 import { UsageRecord } from '../platform/schemas/usage-record.schema';
 import { Deck } from '../deck/schemas/dl_deck.schema';
 import { DeckVersion } from '../version/schemas/dl_deck_version.schema';
-import { GenerationTask } from '../generation/schemas/dl_generation_task.schema';
+import { GenerationTask } from '../platform/schemas/dl_generation_task.schema';
 import { ExportTask } from '../deliver/schemas/dl_export_task.schema';
 import { Asset } from '../asset/schemas/asset.schema';
 import { BrandKit } from '../asset/schemas/brand-kit.schema';
 import { PromptTemplate } from '../asset/schemas/prompt-template.schema';
-import { ChannelConfig } from '../channel/schemas/channel-config.schema';
-import { ChannelPreference } from '../channel/schemas/channel-preference.schema';
 
-/** 全部权威 entity（11 张物理表） */
+/** 全部权威 entity（10 张物理表，ADR-018 口径） */
 export const ALL_ENTITIES = [
   Account,
+  ApiToken,
   UsageRecord,
   Deck,
   DeckVersion,
@@ -34,8 +35,6 @@ export const ALL_ENTITIES = [
   Asset,
   BrandKit,
   PromptTemplate,
-  ChannelConfig,
-  ChannelPreference,
 ];
 
 /** 默认本地连接串（无凭证；生产经 DATABASE_URL 覆盖） */

@@ -15,6 +15,8 @@ export interface AuthTokenPayload {
 export interface AuthPrincipal {
   userId: string;
   accountId: string | null;
+  /** 凭证通道（ADR-018 双凭证）：个人 token 路径挂 'api-token'；会话路径缺省（现状不变） */
+  via?: 'api-token';
 }
 
 /** verifier 接口：token 无效/过期/撤销时返回 null */
@@ -24,3 +26,16 @@ export interface AuthTokenVerifier {
 
 /** DI token（字符串 token，跨模块 provide/useClass 直接引用） */
 export const AUTH_TOKEN_VERIFIER = 'AUTH_TOKEN_VERIFIER';
+
+/**
+ * 个人 API token 校验契约（ADR-018，06 §8.1 双凭证回落）：
+ * 独立于会话 AuthTokenVerifier——查库校验（SHA-256 哈希查找+恒时比较+
+ * expires_at/revoked_at 判定+last_used_at 节流），故为异步接口。
+ * platform 域 ApiTokenService 实现并 provide API_TOKEN_VERIFIER。
+ */
+export interface ApiTokenVerifier {
+  verify(token: string): Promise<AuthTokenPayload | null>;
+}
+
+/** DI token（个人 API token 校验器；AuthGuard 回落 + ApiTokenGuard 消费） */
+export const API_TOKEN_VERIFIER = 'API_TOKEN_VERIFIER';

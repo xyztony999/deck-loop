@@ -1,27 +1,19 @@
 /**
- * version 域 MCP tools —— **agent 直写路径（ADR-017 核心）**。
+ * version 域 MCP tools —— **agent 直写路径（ADR-017 核心 / ADR-018 两模式）**。
  *
  * version_create：coding agent 产出 content JSON（契约 api-version §4.1：
  * pages[]→blocks[]，blockType TEXT|IMAGE|PLACEHOLDER）→ 经 VersionArchiveService
- * 唯一写入口归档（单事务：seq 分配→insertOnly→movePointer→引用计数），
- * **完全绕开 AI 网关**——推理消耗在 agent 侧 coding plan。
+ * 唯一写入口归档（local 进程内直调 / remote POST /ver/version/agent-create，
+ * 同一服务同一事务：seq 分配→insertOnly→movePointer→引用计数）。
  *
  * sourceType 自动判定：scope 存在→TARGETED_ADJUST；有基线→FULL_ADJUST；首版→FULL_GENERATE。
  * TARGETED_ADJUST 强制 assertTargetedInvariance（非目标页/块 canonical 不变，越界不产版本）。
- * 首版成功后 DRAFT→ITERATING（onFirstVersionCreated，generation 回调同口径）。
- * taskId 合成 agent-<snowflake>（本地无网关任务行；树 taskStatusOfSource 自然回落 null）。
+ * 首版成功后 DRAFT→ITERATING（onFirstVersionCreated）。
+ * taskId 合成 agent-<snowflake>（不建任务行；树 taskStatusOfSource 自然回落 null）。
+ * 载荷红线（两模式一致）：pages 1~200、instruction ≤2000、content ≤2MB（env AGENT_CONTENT_MAX_MB）。
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { VersionArchiveService } from '@deck-loop/core/dist/version/version.archive-service';
-import { VersionManageService } from '@deck-loop/core/dist/version/version.manage-service';
-import { VersionArchiveCommand } from '@deck-loop/core/dist/version/version.dto';
-import { DeckDomainService } from '@deck-loop/core/dist/deck/deck.domain-service';
-import { assertTargetedInvariance } from '@deck-loop/core/dist/generation/targeted-invariance';
-import { DeckStatus, VersionSourceType } from '@deck-loop/core/dist/common/enums';
-import { nextId } from '@deck-loop/core/dist/common/utils/snowflake';
-import { BizException } from '@deck-loop/core/dist/common/exceptions';
-import { DECK_NOT_FOUND } from '@deck-loop/core/dist/deck/deck.errors';
 import type { ToolContext } from './context';
 import { guarded, ok } from './respond';
 
@@ -41,12 +33,10 @@ const pageSchema = z.object({
   blocks: z.array(blockSchema),
   style: z.record(z.unknown()).optional(),
 });
-const contentSchema = z.object({ pages: z.array(pageSchema).min(1) });
+const contentSchema = z.object({ pages: z.array(pageSchema).min(1).max(200) });
 
 export function registerVersionTools(server: McpServer, ctx: ToolContext): void {
-  const archive = ctx.core.get(VersionArchiveService);
-  const manage = ctx.core.get(VersionManageService);
-  const deckDomain = ctx.core.get(DeckDomainService);
+  const backend = ctx.backend;
 
   server.registerTool(
     'version_create',
@@ -56,11 +46,12 @@ export function registerVersionTools(server: McpServer, ctx: ToolContext): void 
         'style 可选坐标/字号（x,y,width,height,fontSize,fontFamily,color,textAlign；缺省自动排版）。' +
         'sourceType 自动：首版 FULL_GENERATE / 有基线 FULL_ADJUST / 带 scope TARGETED_ADJUST。' +
         '定向调整（scope={pageId,blockId?}）强制非目标不变性校验，越界拒绝。' +
-        'parentVersionId 缺省=当前指针；branchName 缺省=活动分支（≠活动分支=分叉留档）。',
+        'parentVersionId 缺省=当前指针；branchName 缺省=活动分支（≠活动分支=分叉留档）。' +
+        '载荷红线：pages 1~200、instruction ≤2000 字、content ≤2MB。',
       inputSchema: {
         deckId: z.string().min(1),
         content: contentSchema.describe('页面树快照（整稿）'),
-        instruction: z.string().min(1).describe('本次生成/调整指令（落 instruction_snapshot，树摘要展示）'),
+        instruction: z.string().min(1).max(2000).describe('本次生成/调整指令（落 instruction_snapshot，树摘要展示）'),
         parentVersionId: z.string().optional(),
         branchName: z.string().max(50).optional(),
         scope: z
@@ -70,49 +61,15 @@ export function registerVersionTools(server: McpServer, ctx: ToolContext): void 
       },
     },
     guarded(async (args) => {
-      const deck = await deckDomain.getDeck(args.deckId, ctx.userId);
-      if (deck == null) {
-        throw new BizException(DECK_NOT_FOUND, '创作物不存在');
-      }
-      const content = args.content as Record<string, unknown>;
-      const taskId = `agent-${nextId()}`;
-      const baselineId = args.parentVersionId ?? deck.current_version_id ?? null;
-      const sourceType =
-        args.scope != null
-          ? VersionSourceType.TARGETED_ADJUST
-          : baselineId != null
-            ? VersionSourceType.FULL_ADJUST
-            : VersionSourceType.FULL_GENERATE;
-
-      const instructionSnapshot: Record<string, unknown> = { instruction: args.instruction };
-      if (args.scope != null) {
-        // 定向调整：基线固化进快照 + 非目标不变性校验（越界抛错，不产版本）
-        if (baselineId == null) {
-          throw new BizException(DECK_NOT_FOUND, '定向调整须有基线版本（首版请用整稿生成）');
-        }
-        const baseContent = await archive.getVersionContent(baselineId, ctx.userId);
-        instructionSnapshot['targetPath'] = args.scope;
-        instructionSnapshot['baseContent'] = baseContent;
-        assertTargetedInvariance(instructionSnapshot, content, taskId);
-      }
-
-      const command = new VersionArchiveCommand();
-      command.deckId = args.deckId;
-      command.userId = ctx.userId;
-      command.taskId = taskId;
-      command.sourceType = sourceType;
-      command.instructionSnapshot = instructionSnapshot;
-      command.content = content;
-      command.parentVersionId = args.parentVersionId ?? null;
-      command.branchName = args.branchName ?? null;
-
-      const wasDraft = deck.deck_status === DeckStatus.DRAFT;
-      const result = await archive.createVersionFromTask(command);
-      if (wasDraft) {
-        // 首版流转 DRAFT→ITERATING（generation 成功回调同口径，幂等）
-        await deckDomain.onFirstVersionCreated(args.deckId, ctx.userId);
-      }
-      return ok({ ...result, sourceType, taskId });
+      const receipt = await backend.versionCreate({
+        deckId: args.deckId,
+        content: args.content as Record<string, unknown>,
+        instruction: args.instruction,
+        parentVersionId: args.parentVersionId,
+        branchName: args.branchName,
+        scope: args.scope,
+      });
+      return ok(receipt);
     }),
   );
 
@@ -125,7 +82,7 @@ export function registerVersionTools(server: McpServer, ctx: ToolContext): void 
         branchScope: z.enum(['ALL', 'ACTIVE']).default('ACTIVE'),
       },
     },
-    guarded(async (args) => ok(await manage.tree(args, ctx.userId))),
+    guarded(async (args) => ok(await backend.versionTree(args))),
   );
 
   server.registerTool(
@@ -134,7 +91,7 @@ export function registerVersionTools(server: McpServer, ctx: ToolContext): void 
       description: '版本详情（content 完整 JSON + instruction_snapshot + hash/页数）。',
       inputSchema: { versionId: z.string().min(1) },
     },
-    guarded(async (args) => ok(await manage.detail(args, ctx.userId))),
+    guarded(async (args) => ok(await backend.versionDetail(args.versionId))),
   );
 
   server.registerTool(
@@ -147,7 +104,7 @@ export function registerVersionTools(server: McpServer, ctx: ToolContext): void 
         rightVersionId: z.string().min(1),
       },
     },
-    guarded(async (args) => ok(await manage.compare(args, ctx.userId))),
+    guarded(async (args) => ok(await backend.versionCompare(args))),
   );
 
   server.registerTool(
@@ -160,7 +117,7 @@ export function registerVersionTools(server: McpServer, ctx: ToolContext): void 
       },
     },
     guarded(async (args) => {
-      await manage.rollback({ ...args, confirm: true }, ctx.userId);
+      await backend.versionRollback(args.deckId, args.versionId);
       return ok({ deckId: args.deckId, currentVersionId: args.versionId });
     }),
   );
@@ -176,7 +133,7 @@ export function registerVersionTools(server: McpServer, ctx: ToolContext): void 
       },
     },
     guarded(async (args) => {
-      await manage.fork(args, ctx.userId);
+      await backend.versionFork(args.deckId, args.versionId, args.branchName);
       return ok({ deckId: args.deckId, branchName: args.branchName });
     }),
   );

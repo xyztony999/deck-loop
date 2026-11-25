@@ -16,7 +16,6 @@ import JSZip from 'jszip';
 import PptxGenJS from 'pptxgenjs';
 import {
   MAX_IMAGE_BYTES,
-  RENDER_STYLES,
   SLIDE_HEIGHT,
   SLIDE_WIDTH,
   renderDocument,
@@ -157,39 +156,8 @@ export async function renderPptxArtifact(
   return { bytes: Buffer.from(output), extension: 'pptx' };
 }
 
-/** 独立 HTML 预览（键盘翻页放映，替代 Tauri 放映；本地浏览器打开） */
-export function previewDocument(
-  deckName: string,
-  slides: SlideContent[],
-  imageUrls: ReadonlyMap<string, string>,
-): string {
-  const body = renderDocument(slides, imageUrls);
-  const inner = body.slice(body.indexOf('<body>') + 6, body.indexOf('</body>'));
-  return (
-    `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">` +
-    `<title>${escapeText(deckName)} · deck-loop 预览</title><style>${RENDER_STYLES}` +
-    `html,body{height:100%;background:#111}body{display:flex;align-items:center;justify-content:center;overflow:hidden}` +
-    `#render-root{transform-origin:center center}.slide{display:none}.slide.active{display:block}` +
-    `#hud{position:fixed;right:16px;bottom:12px;color:#9ca3af;font:12px/1.4 system-ui;user-select:none}` +
-    `</style></head><body>${inner}<div id="hud"></div>` +
-    `<script>(function(){var slides=[].slice.call(document.querySelectorAll('.slide'));var i=0;` +
-    `var hud=document.getElementById('hud');` +
-    `function fit(){var s=Math.min(innerWidth/${SLIDE_WIDTH},innerHeight/${SLIDE_HEIGHT});` +
-    `document.getElementById('render-root').style.transform='scale('+s+')';}` +
-    `function show(n){i=Math.max(0,Math.min(slides.length-1,n));` +
-    `slides.forEach(function(el,k){el.classList.toggle('active',k===i);});` +
-    `hud.textContent=(i+1)+' / '+slides.length+' · ←→ 翻页 · F 全屏';}` +
-    `addEventListener('keydown',function(e){` +
-    `if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')show(i+1);` +
-    `else if(e.key==='ArrowLeft'||e.key==='PageUp')show(i-1);` +
-    `else if(e.key==='Home')show(0);else if(e.key==='End')show(slides.length-1);` +
-    `else if(e.key==='f'||e.key==='F'){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}});` +
-    `addEventListener('resize',fit);fit();show(0);})();</script></body></html>`
-  );
-}
-
-function escapeText(value: string): string {
-  return value.replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
-  );
-}
+/**
+ * 独立 HTML 预览（W2/ADR-018：实现已迁入 render-template.ts 零 node 依赖单一源；
+ * 此处 re-export 保持既有消费方路径兼容——新消费方请直接 import render-template）。
+ */
+export { previewDocument } from './render-template';

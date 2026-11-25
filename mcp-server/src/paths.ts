@@ -2,7 +2,7 @@
  * 本地数据目录解析（ADR-017 本地优先）。
  *
  * 默认 ~/.deck-loop/（env DECK_LOOP_HOME 可覆盖）：
- * - deck-loop.db：SQLite 库（11 表与线上 PG 同构，可选同步预留）
+ * - deck-loop.db：SQLite 库（10 表与线上 PG 同构，ADR-018；可选同步预留）
  * - assets/：素材内容寻址存储（ASSET_STORAGE_DIR）
  * - artifacts/：导出产物（EXPORT_ARTIFACT_DIR）
  * - previews/：HTML 预览产物

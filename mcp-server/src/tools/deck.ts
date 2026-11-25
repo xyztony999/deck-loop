@@ -1,22 +1,17 @@
 /**
- * deck 域 MCP tools（复用 DeckManageService/DeckDomainService，状态机/INV 守卫原样）。
+ * deck 域 MCP tools（两模式同 schema/语义/回执；后端经 ToolBackend 装配缝：
+ * local=DeckManageService/DeckDomainService 直调，remote=HTTP 映射 §5.5 #1-10）。
  * 定稿/解锁的二次确认在工具层固定 confirm=true（agent 调用即显式意图）。
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { DeckManageService } from '@deck-loop/core/dist/deck/deck.manage-service';
-import { DeckDomainService } from '@deck-loop/core/dist/deck/deck.domain-service';
 import { DeckStatus } from '@deck-loop/core/dist/common/enums';
-import { BizException } from '@deck-loop/core/dist/common/exceptions';
-import { DECK_NOT_FOUND } from '@deck-loop/core/dist/deck/deck.errors';
-import { TASK_SCOPE_INVALID } from '@deck-loop/core/dist/generation/generation.errors';
 import type { ToolContext } from './context';
 import { guarded, ok } from './respond';
-import { serializeOutline, validateOutline, type OutlineNode } from './outline';
+import type { OutlineNode } from './outline';
 
 export function registerDeckTools(server: McpServer, ctx: ToolContext): void {
-  const manage = ctx.core.get(DeckManageService);
-  const domain = ctx.core.get(DeckDomainService);
+  const backend = ctx.backend;
 
   server.registerTool(
     'deck_create',
@@ -31,16 +26,13 @@ export function registerDeckTools(server: McpServer, ctx: ToolContext): void {
       },
     },
     guarded(async (args) => {
-      const vo = await manage.save(
-        {
-          deckType: 'DECK',
-          deckName: args.deckName,
-          topic: args.topic,
-          requirement: args.requirement,
-          defaultBrandKitId: args.defaultBrandKitId,
-        },
-        ctx.userId,
-      );
+      const vo = await backend.deckSave({
+        deckType: 'DECK',
+        deckName: args.deckName,
+        topic: args.topic,
+        requirement: args.requirement,
+        defaultBrandKitId: args.defaultBrandKitId,
+      });
       return ok(vo);
     }),
   );
@@ -57,7 +49,7 @@ export function registerDeckTools(server: McpServer, ctx: ToolContext): void {
         pageSize: z.number().int().min(1).max(100).default(20),
       },
     },
-    guarded(async (args) => ok(await manage.listPage(args, ctx.userId))),
+    guarded(async (args) => ok(await backend.deckList(args))),
   );
 
   server.registerTool(
@@ -71,12 +63,7 @@ export function registerDeckTools(server: McpServer, ctx: ToolContext): void {
       },
     },
     guarded(async (args) =>
-      ok(
-        await manage.detail(
-          { deckId: args.deckId, withStats: args.withStats, withLatestTask: false },
-          ctx.userId,
-        ),
-      ),
+      ok(await backend.deckDetail({ deckId: args.deckId, withStats: args.withStats, withLatestTask: false })),
     ),
   );
 
@@ -93,16 +80,13 @@ export function registerDeckTools(server: McpServer, ctx: ToolContext): void {
     },
     guarded(async (args) =>
       ok(
-        await manage.save(
-          {
-            deckId: args.deckId,
-            deckType: 'DECK',
-            deckName: args.deckName,
-            topic: args.topic,
-            requirement: args.requirement,
-          },
-          ctx.userId,
-        ),
+        await backend.deckSave({
+          deckId: args.deckId,
+          deckType: 'DECK',
+          deckName: args.deckName,
+          topic: args.topic,
+          requirement: args.requirement,
+        }),
       ),
     ),
   );
@@ -128,20 +112,9 @@ export function registerDeckTools(server: McpServer, ctx: ToolContext): void {
       },
     },
     guarded(async (args) => {
-      const deck = await domain.getDeck(args.deckId, ctx.userId);
-      if (deck == null) {
-        throw new BizException(DECK_NOT_FOUND, '创作物不存在');
-      }
-      if (deck.deck_status !== DeckStatus.DRAFT) {
-        throw new BizException(TASK_SCOPE_INVALID, '首个版本生成后大纲转只读，仅草稿状态可编辑');
-      }
-      const nodes = args.nodes as OutlineNode[];
-      const invalid = validateOutline(nodes);
-      if (invalid != null) {
-        throw new BizException(TASK_SCOPE_INVALID, invalid);
-      }
-      await domain.updateDraftOutline(args.deckId, serializeOutline(nodes), ctx.userId);
-      return ok({ deckId: args.deckId, nodeCount: nodes.length });
+      // 守卫/序列化在后端（local 预校验+直写；remote 预校验+HTTP outline-save）
+      await backend.outlineSave(args.deckId, args.nodes as OutlineNode[]);
+      return ok({ deckId: args.deckId, nodeCount: args.nodes.length });
     }),
   );
 
@@ -153,7 +126,7 @@ export function registerDeckTools(server: McpServer, ctx: ToolContext): void {
       inputSchema: { deckId: z.string().min(1) },
     },
     guarded(async (args) => {
-      await manage.finalize(args.deckId, true, ctx.userId);
+      await backend.deckFinalize(args.deckId);
       return ok({ deckId: args.deckId, deckStatus: DeckStatus.FINALIZED });
     }),
   );
@@ -165,7 +138,7 @@ export function registerDeckTools(server: McpServer, ctx: ToolContext): void {
       inputSchema: { deckId: z.string().min(1) },
     },
     guarded(async (args) => {
-      await manage.unfinalize(args.deckId, true, ctx.userId);
+      await backend.deckUnfinalize(args.deckId);
       return ok({ deckId: args.deckId, deckStatus: DeckStatus.ITERATING });
     }),
   );
@@ -177,7 +150,7 @@ export function registerDeckTools(server: McpServer, ctx: ToolContext): void {
       inputSchema: { deckId: z.string().min(1) },
     },
     guarded(async (args) => {
-      await manage.archive(args.deckId, ctx.userId);
+      await backend.deckArchive(args.deckId);
       return ok({ deckId: args.deckId, deckStatus: DeckStatus.ARCHIVED });
     }),
   );
@@ -189,7 +162,7 @@ export function registerDeckTools(server: McpServer, ctx: ToolContext): void {
       inputSchema: { deckId: z.string().min(1) },
     },
     guarded(async (args) => {
-      await manage.restore(args.deckId, ctx.userId);
+      await backend.deckRestore(args.deckId);
       return ok({ deckId: args.deckId });
     }),
   );
@@ -201,7 +174,7 @@ export function registerDeckTools(server: McpServer, ctx: ToolContext): void {
       inputSchema: { deckId: z.string().min(1) },
     },
     guarded(async (args) => {
-      await manage.delete(args.deckId, ctx.userId);
+      await backend.deckDelete(args.deckId);
       return ok({ deckId: args.deckId, deleted: true });
     }),
   );

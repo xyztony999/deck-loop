@@ -136,6 +136,46 @@ export function renderDocument(slides: SlideContent[], imageUrls: ReadonlyMap<st
   )
 }
 
+/**
+ * 独立 HTML 预览（键盘翻页放映；本地浏览器打开）。
+ * W2（ADR-018）：自 export-renderer.ts 迁入——本文件为**零 node 依赖单一源**，
+ * web 浏览器侧经 TS 路径别名直接消费（禁 import export-renderer）。
+ */
+export function previewDocument(
+  deckName: string,
+  slides: SlideContent[],
+  imageUrls: ReadonlyMap<string, string>,
+): string {
+  const body = renderDocument(slides, imageUrls)
+  const inner = body.slice(body.indexOf('<body>') + 6, body.indexOf('</body>'))
+  return (
+    `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">` +
+    `<title>${escapeText(deckName)} · deck-loop 预览</title><style>${RENDER_STYLES}` +
+    `html,body{height:100%;background:#111}body{display:flex;align-items:center;justify-content:center;overflow:hidden}` +
+    `#render-root{transform-origin:center center}.slide{display:none}.slide.active{display:block}` +
+    `#hud{position:fixed;right:16px;bottom:12px;color:#9ca3af;font:12px/1.4 system-ui;user-select:none}` +
+    `</style></head><body>${inner}<div id="hud"></div>` +
+    `<script>(function(){var slides=[].slice.call(document.querySelectorAll('.slide'));var i=0;` +
+    `var hud=document.getElementById('hud');` +
+    `function fit(){var s=Math.min(innerWidth/${SLIDE_WIDTH},innerHeight/${SLIDE_HEIGHT});` +
+    `document.getElementById('render-root').style.transform='scale('+s+')';}` +
+    `function show(n){i=Math.max(0,Math.min(slides.length-1,n));` +
+    `slides.forEach(function(el,k){el.classList.toggle('active',k===i);});` +
+    `hud.textContent=(i+1)+' / '+slides.length+' · ←→ 翻页 · F 全屏';}` +
+    `addEventListener('keydown',function(e){` +
+    `if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')show(i+1);` +
+    `else if(e.key==='ArrowLeft'||e.key==='PageUp')show(i-1);` +
+    `else if(e.key==='Home')show(0);else if(e.key==='End')show(slides.length-1);` +
+    `else if(e.key==='f'||e.key==='F'){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}});` +
+    `addEventListener('resize',fit);fit();show(0);})();</script></body></html>`
+  )
+}
+
+/** HTML 文本转义（previewDocument 标题等纯文本插入点；与 escapeHtml 同口径） */
+export function escapeText(value: string): string {
+  return escapeHtml(value)
+}
+
 /* ---------------- 内部 ---------------- */
 
 function recordOf(value: unknown): Record<string, unknown> | null {

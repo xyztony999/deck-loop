@@ -1,60 +1,29 @@
 /**
- * deliver 域 MCP tools（ADR-017 Phase 2：headless 导出 + 预览）。
+ * deliver 域 MCP tools（ADR-017 Phase 2 / ADR-018 两模式：headless 导出 + 预览）。
  *
- * export_deck 复用 ExportService 全状态机：submit（FINALIZED 守卫 + INV-14 锚定
- * + EX 取号 QUEUED）→ 本地 headless 渲染 → uploadArtifact（魔数/大小校验 +
- * SUCCEEDED + 落账）；渲染失败 reportFailure（FAILED）。产物路径直接返回。
- *
- * preview_deck：本地便利工具（非交付物），不要求 FINALIZED——当前指针版本或
- * 指定版本 → 独立 HTML 放映（键盘翻页），替代 Tauri 放映。
+ * **渲染始终本地**（服务端零渲染红线 ADR-015）：
+ * - export_deck：submit（FINALIZED 守卫 + INV-14 锚定 + EX 取号 QUEUED；remote 经
+ *   HTTP）→ 取定稿 content + 素材（local 文件直读 / remote 签名 URL 下载）→
+ *   本地 headless 渲染（系统 Edge PDF/PNG、pptxgenjs PPTX）→ upload 回传落账
+ *   （魔数/大小服务端校验）；渲染失败 fail 回传 FAILED。产物本地副本路径回执。
+ * - preview_deck：本地便利工具（非交付物），不要求 FINALIZED——当前指针版本或
+ *   指定版本 → 独立 HTML 放映（键盘翻页），替代 Tauri 放映。
  */
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { ExportService } from '@deck-loop/core/dist/deliver/export.service';
-import { DeckDomainService } from '@deck-loop/core/dist/deck/deck.domain-service';
-import { VersionArchiveService } from '@deck-loop/core/dist/version/version.archive-service';
-import { VersionManageService } from '@deck-loop/core/dist/version/version.manage-service';
-import { AssetRepository } from '@deck-loop/core/dist/asset/asset.repository';
-import { extractAssetIds } from '@deck-loop/core/dist/version/version.content-support';
 import { extensionOfFormat } from '@deck-loop/core/dist/deliver/deliver.constant';
 import { BizException } from '@deck-loop/core/dist/common/exceptions';
 import { DECK_NOT_FOUND } from '@deck-loop/core/dist/deck/deck.errors';
-import { parseSlides } from '../render/render-template';
-import {
-  fileToDataUri,
-  previewDocument,
-  renderBrowserArtifact,
-  renderPptxArtifact,
-} from '../render/export-renderer';
+import { parseSlides, previewDocument } from '../render/render-template';
+import { renderBrowserArtifact, renderPptxArtifact } from '../render/export-renderer';
 import type { ToolContext } from './context';
 import { guarded, ok } from './respond';
 
-/** 本地素材解析：assetId → storage_key → 文件直读 data URI（无 HTTP 签名链路） */
-async function resolveLocalImages(
-  content: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<Map<string, string>> {
-  const urls = new Map<string, string>();
-  const assetIds = extractAssetIds(content);
-  if (assetIds.length === 0) {
-    return urls;
-  }
-  const assets = ctx.core.get(AssetRepository);
-  const found = await assets.findByIds(ctx.userId, assetIds);
-  for (const asset of found) {
-    urls.set(asset.asset_id, await fileToDataUri(join(ctx.paths.assetsDir, asset.storage_key)));
-  }
-  return urls;
-}
-
 export function registerExportTools(server: McpServer, ctx: ToolContext): void {
-  const exports = ctx.core.get(ExportService);
-  const deckDomain = ctx.core.get(DeckDomainService);
-  const archive = ctx.core.get(VersionArchiveService);
-  const versions = ctx.core.get(VersionManageService);
+  const backend = ctx.backend;
 
   server.registerTool(
     'export_deck',
@@ -70,29 +39,33 @@ export function registerExportTools(server: McpServer, ctx: ToolContext): void {
       },
     },
     guarded(async (args) => {
-      const submitVo = await exports.submit(
-        { deckId: args.deckId, exportFormat: args.exportFormat, confirm: args.confirm },
-        ctx.userId,
-      );
+      const submitVo = await backend.exportSubmit({
+        deckId: args.deckId,
+        exportFormat: args.exportFormat,
+        confirm: args.confirm,
+      });
       if (!submitVo.exportId) {
         // PPTX 未 confirm 的提示态回执（未创建任务）
         return ok(submitVo);
       }
       try {
-        const { finalVersionId } = await deckDomain.assertFinalized(args.deckId, ctx.userId);
-        const content = await archive.getVersionContent(finalVersionId, ctx.userId);
+        const content = await backend.finalizedContent(args.deckId);
         const slides = parseSlides(content);
-        const imageUrls = await resolveLocalImages(content, ctx);
+        const imageUrls = await backend.resolveImages(content);
         const artifact =
           args.exportFormat === 'PPTX'
             ? await renderPptxArtifact(slides, imageUrls)
             : await renderBrowserArtifact(args.exportFormat, slides, imageUrls);
-        await exports.uploadArtifact(submitVo.exportId, { buffer: artifact.bytes }, ctx.userId);
+        await backend.exportUpload(submitVo.exportId, artifact.bytes);
         const filePath = join(
           ctx.paths.artifactsDir,
           ctx.userId,
           `${submitVo.exportId}.${extensionOfFormat(args.exportFormat)}`,
         );
+        // 本地产物副本（remote 模式服务端落账在云端，filePath 须本地可打开；
+        // local 模式与核心存储同路径同字节，重写幂等）
+        await mkdir(dirname(filePath), { recursive: true });
+        await writeFile(filePath, artifact.bytes);
         return ok({
           exportId: submitVo.exportId,
           exportFormat: args.exportFormat,
@@ -101,9 +74,7 @@ export function registerExportTools(server: McpServer, ctx: ToolContext): void {
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        await exports
-          .reportFailure({ exportId: submitVo.exportId, errorMsg: message }, ctx.userId)
-          .catch(() => undefined);
+        await backend.exportFail(submitVo.exportId, message).catch(() => undefined);
         throw error;
       }
     }),
@@ -121,7 +92,7 @@ export function registerExportTools(server: McpServer, ctx: ToolContext): void {
         pageSize: z.number().int().min(1).max(100).default(20),
       },
     },
-    guarded(async (args) => ok(await exports.listPage(args, ctx.userId))),
+    guarded(async (args) => ok(await backend.exportList(args))),
   );
 
   server.registerTool(
@@ -137,19 +108,20 @@ export function registerExportTools(server: McpServer, ctx: ToolContext): void {
       },
     },
     guarded(async (args) => {
-      const deck = await deckDomain.getDeck(args.deckId, ctx.userId);
+      const deck = await backend.deckGet(args.deckId);
       if (deck == null) {
         throw new BizException(DECK_NOT_FOUND, '创作物不存在');
       }
-      const versionId = args.versionId ?? deck.current_version_id;
+      const versionId = args.versionId ?? deck.currentVersionId;
       if (versionId == null || versionId.length === 0) {
         throw new BizException(DECK_NOT_FOUND, '当前无版本可预览');
       }
-      const detail = await versions.detail({ versionId }, ctx.userId);
-      const slides = parseSlides(detail.content);
-      const imageUrls = await resolveLocalImages(detail.content, ctx);
-      const html = previewDocument(deck.deck_name, slides, imageUrls);
-      const filePath = join(ctx.paths.previewsDir, `${args.deckId}-v${detail.versionSeq}.html`);
+      const detail = await backend.versionDetail(versionId);
+      const content = detail['content'] as Record<string, unknown>;
+      const slides = parseSlides(content);
+      const imageUrls = await backend.resolveImages(content);
+      const html = previewDocument(deck.deckName, slides, imageUrls);
+      const filePath = join(ctx.paths.previewsDir, `${args.deckId}-v${String(detail['versionSeq'])}.html`);
       await mkdir(dirname(filePath), { recursive: true });
       await writeFile(filePath, html, 'utf8');
       if (args.open) {

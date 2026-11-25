@@ -1,12 +1,12 @@
 /**
- * asset 域 MCP tools（复用 AssetService.upload：INV-19 类型/大小、INV-20 hash
- * 查重/复活原样；本地文件路径 → memory payload，内容寻址落 ASSET_STORAGE_DIR）。
+ * asset 域 MCP tools（两模式同 schema/语义/回执；local=AssetService.upload 直调，
+ * remote=multipart POST /asset/asset/upload，§5.5 #17-18）。
+ * INV-19 类型/大小、INV-20 hash 查重/复活由服务端/本地核心原样守卫。
  */
 import { readFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { AssetService } from '@deck-loop/core/dist/asset/asset.service';
 import type { ToolContext } from './context';
 import { guarded, ok } from './respond';
 
@@ -19,7 +19,7 @@ const MIME_BY_EXT: Record<string, string> = {
 };
 
 export function registerAssetTools(server: McpServer, ctx: ToolContext): void {
-  const assets = ctx.core.get(AssetService);
+  const backend = ctx.backend;
 
   server.registerTool(
     'asset_add',
@@ -37,17 +37,13 @@ export function registerAssetTools(server: McpServer, ctx: ToolContext): void {
     guarded(async (args) => {
       const buffer = await readFile(args.filePath);
       const ext = extname(args.filePath).slice(1).toLowerCase();
-      const vo = await assets.upload(
+      const vo = await backend.assetUpload(
         {
-          fieldname: 'file',
-          originalname: basename(args.filePath),
-          encoding: '7bit',
-          mimetype: MIME_BY_EXT[ext] ?? 'application/octet-stream',
-          size: buffer.length,
           buffer,
+          originalname: basename(args.filePath),
+          mimetype: MIME_BY_EXT[ext] ?? 'application/octet-stream',
         },
         { assetName: args.assetName, category: args.category, assetType: args.assetType },
-        ctx.userId,
       );
       return ok(vo);
     }),
@@ -65,6 +61,6 @@ export function registerAssetTools(server: McpServer, ctx: ToolContext): void {
         pageSize: z.number().int().min(1).max(100).default(20),
       },
     },
-    guarded(async (args) => ok(await assets.listPage(args, ctx.userId))),
+    guarded(async (args) => ok(await backend.assetList(args))),
   );
 }

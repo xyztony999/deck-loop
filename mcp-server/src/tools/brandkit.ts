@@ -1,20 +1,19 @@
 /**
- * 品牌规范 / 话术模板 MCP tools（ADR-017 客户端移除补齐：服务已挂 AssetModule，
- * 纯包装。INV-16 logo 启用态 / INV-17 默认唯一 / INV-18 被引用禁删 /
- * INV-21 占位符语法均由 BrandKitService/PromptTemplateService 原样守卫）。
+ * 品牌规范 / 话术模板 MCP tools（两模式同 schema/语义/回执；local=BrandKitService/
+ * PromptTemplateService 直调，remote=HTTP 映射 §5.5 #19-25）。
+ * INV-16 logo 启用态 / INV-17 默认唯一 / INV-18 被引用禁删 / INV-21 占位符语法
+ * 均由服务端/本地核心原样守卫。
  *
  * agent 用法：brandkit_save 沉淀色彩/字体规范 → deck_create 的 defaultBrandKitId
  * 引用 → 生成 content 时按规范取色取字体（style.color/fontFamily）。
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { BrandKitService, PromptTemplateService } from '@deck-loop/core/dist/asset/asset.service';
 import type { ToolContext } from './context';
 import { guarded, ok } from './respond';
 
 export function registerBrandKitTools(server: McpServer, ctx: ToolContext): void {
-  const kits = ctx.core.get(BrandKitService);
-  const prompts = ctx.core.get(PromptTemplateService);
+  const backend = ctx.backend;
 
   server.registerTool(
     'brandkit_save',
@@ -36,7 +35,7 @@ export function registerBrandKitTools(server: McpServer, ctx: ToolContext): void
         logoAssetId: z.string().optional(),
       },
     },
-    guarded(async (args) => ok(await kits.save(args, ctx.userId))),
+    guarded(async (args) => ok(await backend.brandkitSave(args))),
   );
 
   server.registerTool(
@@ -49,7 +48,7 @@ export function registerBrandKitTools(server: McpServer, ctx: ToolContext): void
         pageSize: z.number().int().min(1).max(100).default(20),
       },
     },
-    guarded(async (args) => ok(await kits.listPage(args, ctx.userId))),
+    guarded(async (args) => ok(await backend.brandkitList(args))),
   );
 
   server.registerTool(
@@ -59,7 +58,7 @@ export function registerBrandKitTools(server: McpServer, ctx: ToolContext): void
       inputSchema: { brandKitId: z.string().min(1) },
     },
     guarded(async (args) => {
-      await kits.setDefault(args, ctx.userId);
+      await backend.brandkitSetDefault(args.brandKitId);
       return ok({ brandKitId: args.brandKitId, isDefault: true });
     }),
   );
@@ -71,7 +70,7 @@ export function registerBrandKitTools(server: McpServer, ctx: ToolContext): void
       inputSchema: { brandKitId: z.string().min(1) },
     },
     guarded(async (args) => {
-      await kits.delete(args, ctx.userId);
+      await backend.brandkitDelete(args.brandKitId);
       return ok({ brandKitId: args.brandKitId, deleted: true });
     }),
   );
@@ -90,7 +89,7 @@ export function registerBrandKitTools(server: McpServer, ctx: ToolContext): void
         templateScene: z.enum(['WHOLE', 'TARGETED']),
       },
     },
-    guarded(async (args) => ok(await prompts.save(args, ctx.userId))),
+    guarded(async (args) => ok(await backend.promptSave(args))),
   );
 
   server.registerTool(
@@ -104,7 +103,7 @@ export function registerBrandKitTools(server: McpServer, ctx: ToolContext): void
         pageSize: z.number().int().min(1).max(100).default(20),
       },
     },
-    guarded(async (args) => ok(await prompts.listPage(args, ctx.userId))),
+    guarded(async (args) => ok(await backend.promptList(args))),
   );
 
   server.registerTool(
@@ -114,7 +113,7 @@ export function registerBrandKitTools(server: McpServer, ctx: ToolContext): void
       inputSchema: { templateId: z.string().min(1) },
     },
     guarded(async (args) => {
-      await prompts.delete(args, ctx.userId);
+      await backend.promptDelete(args.templateId);
       return ok({ templateId: args.templateId, deleted: true });
     }),
   );

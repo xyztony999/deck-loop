@@ -30,6 +30,23 @@
 | v3.2（本地优先 MCP + 薄插件，ADR-017） | 已被 ADR-018 演进 | agent 直写绕开网关，coding plan 原生；Tauri 客户端移除 |
 | v3.3（Web 管理站 + PG 单源 + MCP 远程 + 网关移除，ADR-018） | **当前** | 网站管理 / agent 创作同库实时；56 端点；个人 API token |
 
+## 安装插件（ZCode / Claude Code / Cursor / Codex）
+
+主仓即市场。ZCode / Claude Code：
+
+```
+/plugin marketplace add xyztony999/deck-loop
+/plugin install deck-loop@deck-loop
+```
+
+Cursor / Codex 等：下载 [Release](https://github.com/xyztony999/deck-loop/releases) 的
+`deck-loop-plugin-<v>.zip` 解压，MCP 配置指向包内 `server.cjs`（Node ≥ 20）。
+详见 [plugin/README.md](plugin/README.md)。
+
+插件双模式：**本地**开箱即用（sql.js，零服务端）；**远程**用 `remote_connect`
+登录你自己的 deck-loop 账号（与网站同库实时，密码不落盘）。CI tag 自动构建发布
+（`release-plugin.yml`：bundle→zip→Release→marketplace.json sha256 回写）。
+
 ## 本地开发
 
 ```bash

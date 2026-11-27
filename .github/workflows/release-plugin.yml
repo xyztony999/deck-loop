@@ -1,0 +1,49 @@
+name: Release Plugin
+
+# tag v* → 构建自包含插件 zip → GitHub Release 资产 → 回写 marketplace.json（sha256）
+# 主仓即市场：/plugin marketplace add xyztony999/deck-loop
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: 构建插件包并发布
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            server-node/pnpm-lock.yaml
+            mcp-server/pnpm-lock.yaml
+      - run: cd server-node && pnpm install --frozen-lockfile && pnpm build
+      - run: cd mcp-server && pnpm install --frozen-lockfile && pnpm build
+      - name: 构建市场包（bundle + zip + sha256）
+        run: cd mcp-server && node scripts/build-marketplace.mjs --version "${GITHUB_REF_NAME#v}"
+      - name: 创建 Release 并上传 zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            mcp-server/dist-market/deck-loop-plugin-*.zip \
+            --title "deck-loop plugin $GITHUB_REF_NAME" \
+            --notes "自包含双模式插件（local sql.js / remote 登录）。安装：/plugin marketplace add xyztony999/deck-loop → /plugin install deck-loop@deck-loop。详见 plugin/README.md。"
+      - name: 回写市场清单（url + sha256 + version）
+        run: node mcp-server/scripts/update-marketplace.mjs
+      - name: 提交清单回 main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add marketplace.json .claude-plugin/marketplace.json
+          git commit -m "chore(marketplace): $GITHUB_REF_NAME 插件包 sha256 [skip ci]"
+          git push origin HEAD:main

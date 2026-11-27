@@ -34,8 +34,14 @@ import { translatePgToSqlite } from './sqlite-dialect';
 export interface LocalCoreOptions {
   /** SQLite 数据库文件路径（':memory:' 供测试） */
   database: string;
-  /** better-sqlite3 模块对象（宿主注入，避免 core 树引 native 依赖） */
+  /**
+   * 驱动对象（宿主注入，避免 core 树引 native/wasm 依赖）：
+   * - better-sqlite3：模块本体；
+   * - sqljs：**已初始化**的 SQL 对象（宿主先 initSqlJs({locateFile})，ADR-019 市场包）。
+   */
   driver?: unknown;
+  /** SQLite 引擎（缺省 better-sqlite3；sqljs=纯 JS+wasm，跨平台市场包用） */
+  engine?: 'better-sqlite3' | 'sqljs';
   /** 自动建表（本地单用户库默认 true；生产 PG 红线 synchronize=false 不受影响） */
   synchronize?: boolean;
 }
@@ -65,14 +71,29 @@ export async function createLocalCore(options: LocalCoreOptions): Promise<LocalC
   @Module({
     imports: [
       TypeOrmModule.forRootAsync({
-        useFactory: () => ({
-          type: 'better-sqlite3' as const,
-          database: options.database,
-          driver: options.driver,
-          entities: ALL_ENTITIES,
-          synchronize: options.synchronize ?? true,
-          logging: false,
-        }),
+        useFactory: () => {
+          const shared = {
+            driver: options.driver,
+            entities: ALL_ENTITIES,
+            synchronize: options.synchronize ?? true,
+            logging: false,
+          };
+          if (options.engine === 'sqljs') {
+            // sql.js：location=文件路径（autoSave 落盘）；':memory:' 无 location=纯内存
+            const inMemory = options.database === ':memory:';
+            return {
+              type: 'sqljs' as const,
+              location: inMemory ? undefined : options.database,
+              autoSave: !inMemory,
+              ...shared,
+            };
+          }
+          return {
+            type: 'better-sqlite3' as const,
+            database: options.database,
+            ...shared,
+          };
+        },
       }),
       EventEmitterModule.forRoot(),
       DeckModule,

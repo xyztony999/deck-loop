@@ -1,7 +1,7 @@
 {
   "name": "@deck-loop/mcp",
-  "version": "0.1.0",
-  "description": "deck-loop local-first MCP server — coding agent 出推理（coding plan），deck-loop 出确定性状态机（ADR-017）",
+  "version": "0.2.0",
+  "description": "deck-loop MCP server — 双模式（local sql.js / remote 登录），coding agent 出推理（coding plan），deck-loop 出确定性状态机（ADR-017/018/019）",
   "private": true,
   "license": "AGPL-3.0-only",
   "engines": {
@@ -29,13 +29,16 @@
     "jszip": "^3.10.2",
     "playwright-core": "^1.49.0",
     "pptxgenjs": "^4.0.1",
+    "sql.js": "^1.17.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.2",
+    "@types/sql.js": "^1.16.1",
     "cross-env": "^10.1.0",
+    "esbuild": "^0.25.12",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
     "tsx": "^4.19.2",

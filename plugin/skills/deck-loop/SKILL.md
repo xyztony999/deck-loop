@@ -9,7 +9,13 @@ license: AGPL-3.0-only
 
 # deck-loop · agent 驱动幻灯片创作
 
-**架构（ADR-017）**：你（coding agent）出推理，消耗用户的 coding plan；deck-loop MCP server 出确定性状态机（版本树 / 不变性校验 / 渲染导出），本地 SQLite 存储，**零 API key、零服务端依赖**。不要尝试调用任何 LLM API——内容 JSON 由你直接产出，经 `version_create` 写入。
+**架构（ADR-017/018/019）**：你（coding agent）出推理，消耗用户的 coding plan；deck-loop MCP server 出确定性状态机（版本树 / 不变性校验 / 渲染导出），**零 API key、零 LLM 调用**。不要尝试调用任何 LLM API——内容 JSON 由你直接产出，经 `version_create` 写入。
+
+## 连接模式（先确认再创作）
+
+- **本地模式（默认）**：开箱即用，sql.js 本地库（`~/.deck-loop/`），零服务端。适合个人/离线。
+- **远程模式**：登录用户自己的 deck-loop 系统，与网站同库实时。用 `remote_connect`（向用户索取 apiUrl + 邮箱 + 密码；密码仅内存使用不落盘）→ 自动签发 token 并切换。`connection_status` 查当前模式；`remote_disconnect` 回本地。
+- 开场先 `connection_status`；用户提到「我的系统/网站/账号」→ 引导 remote_connect；否则本地直接创作。
 
 ## 工作流
 
@@ -70,6 +76,7 @@ license: AGPL-3.0-only
 | version_rollback / version_fork | 移指针回退 / 新分支分叉 |
 | deck_finalize / deck_unfinalize | 定稿 / 解锁 |
 | deck_archive / deck_restore / deck_delete | 归档 / 恢复 / 软删（仅 ARCHIVED；**删除须用户明确授权**） |
+| remote_connect / remote_disconnect / connection_status | 登录远程系统 / 回本地 / 查连接状态 |
 | asset_add / asset_list | 素材上传（本地路径）/ 列表 |
 | preview_deck | HTML 放映预览（不要求定稿） |
 | export_deck / export_list | 三格式导出（须 FINALIZED）/ 导出记录 |

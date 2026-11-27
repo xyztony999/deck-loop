@@ -138,4 +138,17 @@ describe('双模式市场包（ADR-019）', () => {
     expect(cfg.mode).toBe('local');
     expect(cfg.token).toBeUndefined();
   });
+
+  it('env 预置优先于 config（工具 MCP 配置场景）', () => {
+    process.env.DECK_LOOP_API_URL = baseUrl;
+    process.env.DECK_LOOP_API_TOKEN = ISSUED_TOKEN;
+    try {
+      const envBackend = new SwitchableBackend(paths, 'local');
+      expect(envBackend.mode).toBe('remote'); // config 此时是 local，env 胜出
+      expect(envBackend.status().apiUrl).toBe(baseUrl);
+    } finally {
+      delete process.env.DECK_LOOP_API_URL;
+      delete process.env.DECK_LOOP_API_TOKEN;
+    }
+  });
 });

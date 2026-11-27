@@ -70,7 +70,14 @@ export class SwitchableBackend implements ToolBackend {
   private cfg: PluginConfig;
 
   constructor(private readonly paths: LocalPaths, private readonly userId: string) {
-    this.cfg = loadConfig(paths);
+    // 优先级：env（工具 MCP 配置预置）> config.json（remote_connect 落盘）> 默认 local
+    const envUrl = process.env.DECK_LOOP_API_URL?.trim();
+    const envToken = process.env.DECK_LOOP_API_TOKEN?.trim();
+    if (envUrl && envToken) {
+      this.cfg = { mode: 'remote', apiUrl: envUrl.replace(/\/+$/, ''), token: envToken };
+    } else {
+      this.cfg = loadConfig(paths);
+    }
     if (this.cfg.mode === 'remote' && this.cfg.apiUrl && this.cfg.token) {
       this.remote = new RemoteClient({ apiUrl: this.cfg.apiUrl, apiToken: this.cfg.token });
     }

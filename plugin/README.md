@@ -3,12 +3,41 @@
 coding agent 出推理（消耗你的 coding plan），deck-loop 出确定性状态机：不可变版本树、
 定向调整不变性、headless PDF/PNG/PPTX 导出。**零 API key、零 LLM 调用**。
 
-## 双模式
+## 双模式与配置
 
 - **本地（默认）**：开箱即用，sql.js 本地库 `~/.deck-loop/`，零服务端、全平台通用。
-- **远程**：`remote_connect` 登录你自己的 deck-loop 账号（apiUrl + 邮箱 + 密码）→
-  自动签发个人 token → 与网站同库实时。密码仅内存使用，绝不落盘；token 存
-  `~/.deck-loop/config.json`。`remote_disconnect` 回本地，`connection_status` 查状态。
+- **远程**：与你的 deck-loop 系统（网站）同库实时。三种配置方式，优先级
+  **env > config.json > 默认 local**：
+
+**① 对话式（所有工具通用，推荐）**：直接跟 agent 说「连接我的 deck-loop 系统」，
+agent 调 `remote_connect` 向你索取 apiUrl + 邮箱 + 密码 → 登录 → 自动签发个人
+token → 存 `~/.deck-loop/config.json` → 切远程。**密码仅内存使用，绝不落盘**。
+此后每次启动自动远程。`remote_disconnect` 回本地，`connection_status` 查状态。
+
+**② MCP 配置 env 预置（Cursor / Codex / ZCode 高级）**：在工具的 MCP 配置 env
+字段填 `DECK_LOOP_API_URL`（如 `https://host/api`）+ `DECK_LOOP_API_TOKEN`
+（网站设置页签发的 `dlpat_`）。env 优先于 config.json，适合集中管理/多机部署。
+
+**③ 手动 config.json**：`~/.deck-loop/config.json` 写
+`{"mode":"remote","apiUrl":"https://host/api","token":"dlpat_..."}`。
+
+```jsonc
+// Cursor / Codex MCP 配置示例（方式②）
+{
+  "mcpServers": {
+    "deck-loop": {
+      "command": "node",
+      "args": ["/路径/deck-loop-plugin/server.cjs"],
+      "env": {
+        "DECK_LOOP_API_URL": "https://api.<你的域名>/api",
+        "DECK_LOOP_API_TOKEN": "dlpat_..."
+      }
+    }
+  }
+}
+```
+
+不填任何配置 = 本地模式。ZCode/Claude 市场安装后 MCP 自动接线，方式①最省事。
 
 ## 安装
 

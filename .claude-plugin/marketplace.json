@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "deck-loop plugin marketplace (main repo as marketplace)",
-    "version": "0.2.0"
+    "version": "0.2.1"
   },
   "plugins": [
     {
@@ -13,15 +13,15 @@
       "source": {
         "source": "url",
         "type": "zip",
-        "url": "https://github.com/xyztony999/deck-loop/releases/download/v0.2.0/deck-loop-plugin-0.2.0.zip",
-        "sha256": "168e659adae86d9ce4b4251de3387226037b95ec4ba2d8b1179804c1da31cc19"
+        "url": "https://github.com/xyztony999/deck-loop/releases/download/v0.2.1/deck-loop-plugin-0.2.1.zip",
+        "sha256": "10274454dd80139fb9065f69d28c79389c4135293c86441f3f7ae1882360bf6d"
       },
       "description": "Agent-driven deck creation: local (zero-server) or remote (login to your deck-loop account). Immutable version tree, targeted-adjust invariance, headless PDF/PNG/PPTX export. No API key — reasoning runs on your coding plan.",
       "description_i18n": {
         "en": "Agent-driven deck creation: local (zero-server) or remote (login to your deck-loop account). Immutable version tree, targeted-adjust invariance, headless PDF/PNG/PPTX export. No API key — reasoning runs on your coding plan.",
         "zh-CN": "agent 驱动幻灯片创作：本地开箱即用或登录你的 deck-loop 账号远程同库。不可变版本树、定向调整不变性、headless PDF/PNG/PPTX 导出。零 API key——推理消耗你的 coding plan。"
       },
-      "version": "0.2.0",
+      "version": "0.2.1",
       "author": {
         "name": "deck-loop"
       },

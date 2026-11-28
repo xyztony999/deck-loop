@@ -1,8 +1,14 @@
 name: Release Plugin
 
-# tag v* → 构建自包含插件 zip → GitHub Release 资产 → 回写 marketplace.json（sha256）
+# tag v* → 构建自包含插件 zip → GitHub Release 资产 → npm OIDC 发布（Trusted
+# Publishing，无 token 无 OTP）→ 回写 marketplace.json（sha256）
 # 主仓即市场：ZCode 设置→插件管理→发现→+ 输入 xyztony999/deck-loop；
-# Claude Code /plugin marketplace add xyztony999/deck-loop
+# Claude Code /plugin marketplace add xyztony999/deck-loop；
+# Cursor/Codex：npx -y deck-loop-mcp。
+#
+# npm 侧前置（一次性，网站操作）：npmjs.com → 包 deck-loop-mcp → Settings →
+# Trusted Publisher → 绑定 repo=xyztony999/deck-loop，workflow=release-plugin.yml，
+# environment 留空。
 
 on:
   push:
@@ -10,10 +16,11 @@ on:
 
 permissions:
   contents: write
+  id-token: write # npm Trusted Publishing（OIDC）
 
 jobs:
   release:
-    name: 构建插件包并发布
+    name: 构建插件包并发布（zip + npm）
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +36,10 @@ jobs:
             mcp-server/pnpm-lock.yaml
       - run: cd server-node && pnpm install --frozen-lockfile && pnpm build
       - run: cd mcp-server && pnpm install --frozen-lockfile && pnpm build
-      - name: 构建市场包（bundle + zip + sha256）
+      # Trusted Publishing 要求 npm CLI ≥ 11.5.1（Node 24 自带版本可能偏旧，显式升最新）
+      - name: 升级 npm CLI（≥11.5.1，OIDC 发布支持）
+        run: npm i -g npm@latest
+      - name: 构建市场包（bundle + zip + sha256 + npm 发布面）
         run: cd mcp-server && node scripts/build-marketplace.mjs --version "${GITHUB_REF_NAME#v}"
       - name: 创建 Release 并上传 zip
         env:
@@ -38,13 +48,16 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             mcp-server/dist-market/deck-loop-plugin-*.zip \
             --title "deck-loop plugin $GITHUB_REF_NAME" \
-            --notes "自包含双模式插件（local sql.js / remote 登录）。安装：ZCode 设置→插件管理→发现→+ 输入 xyztony999/deck-loop；Claude Code /plugin marketplace add xyztony999/deck-loop。Cursor/Codex 见 plugin/README.md（npx -y deck-loop-mcp）。"
+            --notes "自包含双模式插件（local sql.js / remote 浏览器授权登录）。安装：ZCode 设置→插件管理→发现→+ 输入 xyztony999/deck-loop；Claude Code /plugin marketplace add xyztony999/deck-loop；Cursor/Codex npx -y deck-loop-mcp。"
+      # OIDC 发布放在 zip Release 之后：即使 npm 侧失败，zip 交付不受影响
+      - name: npm 发布（Trusted Publishing OIDC）
+        run: cd mcp-server/dist-market && npm publish --access public
       - name: 回写市场清单（url + sha256 + version）
         run: node mcp-server/scripts/update-marketplace.mjs
       - name: 提交清单回 main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add marketplace.json .claude-plugin/marketplace.json
+          git add marketplace.json
           git commit -m "chore(marketplace): $GITHUB_REF_NAME 插件包 sha256 [skip ci]"
           git push origin HEAD:main

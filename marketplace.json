@@ -7,7 +7,7 @@
         "source": "url",
         "type": "zip",
         "url": "https://github.com/xyztony999/deck-loop/releases/download/v0.2.3/deck-loop-plugin-0.2.3.zip",
-        "sha256": "a784257a8ab492bdfbaf5021770b737b3ee7bf73830edfcc4dcf4636fb3014ed",
+        "sha256": "6c3c6b4f8f8a5e11000b85f894041479a4663332c1f0960b84ac1ec5d1d17df9",
         "path": "deck-loop"
       },
       "description": "Agent-driven slide decks: works locally out of the box, or sign in to your deck-loop account to sync with your website. Version management, asset library, PDF/image/PPT export.",

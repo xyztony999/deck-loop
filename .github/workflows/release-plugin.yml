@@ -35,6 +35,8 @@ jobs:
             server-node/pnpm-lock.yaml
             mcp-server/pnpm-lock.yaml
       - run: cd server-node && pnpm install --frozen-lockfile && pnpm build
+      # web/ 管理站前端随市场包（缺它 manage_open 无页面）
+      - run: cd web && pnpm install --frozen-lockfile && pnpm build
       - run: cd mcp-server && pnpm install --frozen-lockfile && pnpm build
       # Trusted Publishing 要求 npm CLI ≥ 11.5.1（Node 24 自带版本可能偏旧，显式升最新）
       - name: 升级 npm CLI（≥11.5.1，OIDC 发布支持）

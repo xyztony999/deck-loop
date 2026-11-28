@@ -123,7 +123,7 @@ writeFileSync(
       version,
       description: 'deck-loop MCP server — dual-mode (local sql.js / remote login), agent-driven deck creation (ADR-017/018/019)',
       license: 'AGPL-3.0-only',
-      bin: { 'deck-loop-mcp': './server.cjs' },
+      bin: { 'deck-loop-mcp': 'server.cjs' },
       files: ['server.cjs', 'sql-wasm.wasm', 'web/', 'README.md'],
       dependencies: { 'playwright-core': '^1.49.0' },
       engines: { node: '>=20' },

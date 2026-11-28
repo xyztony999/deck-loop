@@ -9,7 +9,7 @@ import type { ToolContext } from './tools/context';
 import { registerAllTools } from './tools/register';
 
 export const SERVER_NAME = 'deck-loop';
-export const SERVER_VERSION = '0.2.3';
+export const SERVER_VERSION = '0.2.4';
 
 /** 装配 MCP server（装配缝通用入口；传输由调用方连接——stdio/InMemory 测试同构） */
 export function createMcpServerWithBackend(

@@ -7,7 +7,7 @@
  */
 import { createServer, type Server } from 'node:http';
 import type { Socket } from 'node:net';
-import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -84,10 +84,10 @@ describe('双模式市场包（ADR-019）', () => {
     return data;
   }
 
-  it('tools/list = 31（28 业务 + 3 连接）', async () => {
+  it('tools/list = 32（28 业务 + 4 连接/管理）', async () => {
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(31);
-    for (const n of ['remote_connect', 'remote_disconnect', 'connection_status']) {
+    expect(tools).toHaveLength(32);
+    for (const n of ['remote_connect', 'remote_disconnect', 'connection_status', 'manage_open']) {
       expect(tools.map((t) => t.name)).toContain(n);
     }
   });
@@ -138,6 +138,43 @@ describe('双模式市场包（ADR-019）', () => {
     expect(cfg.mode).toBe('local');
     expect(cfg.token).toBeUndefined();
   });
+
+  it('manage_open：内嵌本地管理站（HTTP + SPA 兜底 + 通行守卫）', async () => {
+    const webDir = join(paths.home, 'web');
+    mkdirSync(webDir, { recursive: true });
+    writeFileSync(join(webDir, 'index.html'), '<!doctype html><html>deck-loop 管理站</html>');
+    process.env.DECK_LOOP_WEB_DIST = webDir;
+    // 新实例：localPromise 全新 → 走 HTTP 版核心
+    const fresh = new SwitchableBackend(paths, 'local');
+    const server2 = createMcpServerWithBackend(fresh, paths, 'local');
+    registerAccountTools(server2, fresh);
+    const c2 = new Client({ name: 'manage-test', version: '0.0.0' });
+    const [t1, t2] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server2.connect(t2), c2.connect(t1)]);
+    try {
+      const res = await c2.callTool({ name: 'manage_open', arguments: { open: false } });
+      const data = JSON.parse((res.content as Array<{ text: string }>)[0].text);
+      expect(res.isError).toBeUndefined();
+      expect(data.mode).toBe('local');
+      expect(String(data.url)).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+      // 通行守卫 + 本地库：/api 业务端点免登录可用
+      const list = await fetch(`${data.url}/api/deck/deck/list`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pageNum: 1, pageSize: 5 }),
+      });
+      const env = (await list.json()) as { status: boolean; data?: { total: number } };
+      expect(env.status).toBe(true);
+      expect(env.data?.total).toBe(1); // 本地那套 deck
+      // SPA 兜底：非 /api GET 回 index.html
+      const html = await (await fetch(`${data.url}/deck`)).text();
+      expect(html).toContain('deck-loop 管理站');
+    } finally {
+      await c2.close();
+      await fresh.close();
+      delete process.env.DECK_LOOP_WEB_DIST;
+    }
+  }, 30000);
 
   it('env 预置优先于 config（工具 MCP 配置场景）', () => {
     process.env.DECK_LOOP_API_URL = baseUrl;

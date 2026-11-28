@@ -6,8 +6,8 @@
  * 成功后自动签发个人 token 并落盘（**密码永不落盘**）；disconnect 回 local。
  * 28 业务 tools 无感知——全部经本类委托；account tools 经 connect/disconnect/status。
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type { LocalPaths } from '../paths';
 import type { ToolBackend, DeckSnapshot, VersionCreateInput, VersionCreateReceipt, ExportSubmitReceipt, AssetUploadFile } from './backend';
 import type { OutlineNode } from './outline';
@@ -45,6 +45,20 @@ function loadConfig(paths: LocalPaths): PluginConfig {
 function saveConfig(paths: LocalPaths, cfg: PluginConfig): void {
   mkdirSync(dirname(configPath(paths)), { recursive: true });
   writeFileSync(configPath(paths), JSON.stringify(cfg, null, 2), 'utf8');
+}
+
+/** 系统浏览器打开（win32 start / darwin open / linux xdg-open；失败静默） */
+function openInBrowser(url: string): void {
+  const command =
+    process.platform === 'win32' ? 'cmd' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+  const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { spawn } = require('node:child_process') as typeof import('node:child_process');
+    spawn(command, args, { detached: true, stdio: 'ignore' }).unref();
+  } catch {
+    // 打开失败不影响站点本身
+  }
 }
 
 /** 服务端 Result 信封解包（login/issue 共用；失败抛带 code 的 Error） */
@@ -99,12 +113,25 @@ export class SwitchableBackend implements ToolBackend {
         const { initLocalEngine } = await import('../local-engine');
         const { LocalBackend } = await import('./local-backend');
         const { engine, driver } = await initLocalEngine();
-        const core = await createLocalCore({ database: this.paths.database, engine, driver });
+        const webDist = this.resolveWebDist();
+        const core = await createLocalCore({
+          database: this.paths.database,
+          engine,
+          driver,
+          // 内嵌管理站（ADR-019 manage_open）：web 前端产物存在才挂 HTTP
+          http: webDist != null ? { webDist } : undefined,
+        });
         this.localBackend = new LocalBackend(core, this.userId, this.paths);
         return this.localBackend;
       })();
     }
     return this.localPromise;
+  }
+
+  /** web/ 前端产物定位：env DECK_LOOP_WEB_DIST > server.cjs 同级 web/（市场包） */
+  private resolveWebDist(): string | null {
+    const candidate = process.env.DECK_LOOP_WEB_DIST ?? join(__dirname, 'web');
+    return existsSync(join(candidate, 'index.html')) ? candidate : null;
   }
 
   /* ---------------- 连接管理（account tools 消费） ---------------- */
@@ -147,6 +174,29 @@ export class SwitchableBackend implements ToolBackend {
       expiresAt: this.cfg.expiresAt ?? null,
       localDatabase: this.paths.database,
     };
+  }
+
+  /**
+   * 管理站（ADR-019 manage_open）：local=内嵌 web 站（127.0.0.1，同进程同库）；
+   * remote=用户的 deck-loop 网站。open=true 时系统浏览器打开。
+   */
+  async manageOpen(open = true): Promise<Record<string, unknown>> {
+    if (this.mode === 'remote') {
+      const url = (this.cfg.apiUrl ?? '').replace(/\/api\/?$/, '');
+      return { mode: 'remote', url, note: '远程模式管理站=你的 deck-loop 网站' };
+    }
+    await this.active();
+    const url = (this.localBackend as { httpUrl?: string | null } | null)?.httpUrl ?? null;
+    if (url == null) {
+      throw Object.assign(
+        new Error('本地管理站未启用：缺少 web/ 前端产物（DECK_LOOP_WEB_DIST 或 server.cjs 同级 web/）'),
+        { code: 'BIZ_MANAGE_UI_UNAVAILABLE' },
+      );
+    }
+    if (open) {
+      openInBrowser(url);
+    }
+    return { mode: 'local', url, note: '本地管理站已就绪（仅 127.0.0.1 绑定）；agent 对话管理照常可用' };
   }
 
   /* ---------------- ToolBackend 委托（31 方法） ---------------- */

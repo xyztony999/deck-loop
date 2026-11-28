@@ -27,6 +27,12 @@ ADR-018 后插件分发提上日程。用户裁决：市场版插件保留**本�
    Cursor/Codex 下载 zip 配 server.cjs。
 4. 仓库 local/remote 固定入口（env 驱动）保留向后兼容；市场包入口
    plugin-main.ts（config 驱动，默认 sqljs）。
+5. **内嵌本地管理站（manage_open，2026-11-28 追加）**：本地核心可选以 HTTP 形态
+   启动（NestFactory.create + 四域控制器 + 本地通行守卫伪造 principal +
+   setGlobalPrefix api + 静态 web/ 前端 + SPA 兜底，绑 127.0.0.1 随机端口），
+   MCP tools 与网站同进程同库；`manage_open` 一键起站+开浏览器，远程模式指向
+   用户网站。签名基址 env 启动前注入（ASSET_URL_PUBLIC_BASE_URL=/api/files）。
+   模式配置优先级 env > config.json > 默认 local（工具 MCP env 预置场景）。
 
 ## 验证
 

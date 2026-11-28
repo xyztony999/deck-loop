@@ -18,7 +18,17 @@
  * 另行 import 第二份 reflect-metadata/typeorm，否则元数据/实例同一性断裂）。
  */
 import 'reflect-metadata';
-import { Module, type INestApplicationContext, type Type } from '@nestjs/common';
+import { join } from 'node:path';
+import { freePort } from './free-port';
+import {
+  Module,
+  ValidationPipe,
+  type CanActivate,
+  type ExecutionContext,
+  type INestApplicationContext,
+  type Type,
+} from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { NestFactory } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -44,6 +54,16 @@ export interface LocalCoreOptions {
   engine?: 'better-sqlite3' | 'sqljs';
   /** 自动建表（本地单用户库默认 true；生产 PG 红线 synchronize=false 不受影响） */
   synchronize?: boolean;
+  /**
+   * HTTP 管理站（ADR-019 manage_open）：给本地核心挂 /api 控制器 + web 静态站。
+   * 不传=纯 application context（MCP tools 够用，无 HTTP）。
+   */
+  http?: {
+    /** 监听端口（缺省取空闲端口，绑 127.0.0.1） */
+    port?: number;
+    /** web/ 前端构建产物目录（index.html）；缺失时仅 API 无静态站 */
+    webDist?: string;
+  };
 }
 
 /** 本地核心句柄（域服务经 get(Class) 取用） */
@@ -52,6 +72,8 @@ export interface LocalCore {
   dataSource: DataSource;
   get<T>(cls: Type<T>): T;
   close(): Promise<void>;
+  /** 管理站地址（http 选项缺省时为 null） */
+  httpUrl: string | null;
 }
 
 /** QueryRunner 原型翻译补丁标记（同进程多核心共享原型，防重复包裹） */
@@ -68,53 +90,109 @@ export async function createLocalCore(options: LocalCoreOptions): Promise<LocalC
     );
   }
 
+  const typeOrmFactory = () => {
+    const shared = {
+      driver: options.driver,
+      entities: ALL_ENTITIES,
+      synchronize: options.synchronize ?? true,
+      logging: false,
+    };
+    if (options.engine === 'sqljs') {
+      // sql.js：location=文件路径（autoSave 落盘）；':memory:' 无 location=纯内存
+      const inMemory = options.database === ':memory:';
+      return {
+        type: 'sqljs' as const,
+        location: inMemory ? undefined : options.database,
+        autoSave: !inMemory,
+        ...shared,
+      };
+    }
+    return {
+      type: 'better-sqlite3' as const,
+      database: options.database,
+      ...shared,
+    };
+  };
+
+  /** 本地通行守卫：单用户无鉴权（127.0.0.1 绑定），web 前端的 @CurrentUser 由它供体 */
+  class LocalPassGuard implements CanActivate {
+    canActivate(context: ExecutionContext): boolean {
+      context.switchToHttp().getRequest().user = {
+        userId: 'local',
+        accountId: null,
+      };
+      return true;
+    }
+  }
+
   @Module({
     imports: [
-      TypeOrmModule.forRootAsync({
-        useFactory: () => {
-          const shared = {
-            driver: options.driver,
-            entities: ALL_ENTITIES,
-            synchronize: options.synchronize ?? true,
-            logging: false,
-          };
-          if (options.engine === 'sqljs') {
-            // sql.js：location=文件路径（autoSave 落盘）；':memory:' 无 location=纯内存
-            const inMemory = options.database === ':memory:';
-            return {
-              type: 'sqljs' as const,
-              location: inMemory ? undefined : options.database,
-              autoSave: !inMemory,
-              ...shared,
-            };
-          }
-          return {
-            type: 'better-sqlite3' as const,
-            database: options.database,
-            ...shared,
-          };
-        },
-      }),
+      TypeOrmModule.forRootAsync({ useFactory: typeOrmFactory }),
       EventEmitterModule.forRoot(),
       DeckModule,
       VersionModule,
       AssetModule,
       DeliverModule,
     ],
+    providers: options.http != null ? [{ provide: APP_GUARD, useClass: LocalPassGuard }] : [],
   })
   class LocalCoreModule {}
 
-  const context = await NestFactory.createApplicationContext(LocalCoreModule, {
-    logger: false,
-  });
-  const dataSource = context.get(DataSource);
+  if (options.http == null) {
+    const context = await NestFactory.createApplicationContext(LocalCoreModule, {
+      logger: false,
+    });
+    const dataSource = context.get(DataSource);
+    patchSqliteDialect(dataSource);
+    return {
+      context,
+      dataSource,
+      get: <T>(cls: Type<T>): T => context.get(cls),
+      close: () => context.close(),
+      httpUrl: null,
+    };
+  }
+
+  // ---- HTTP 管理站（ADR-019 manage_open）：先定端口再设签名基址 env（存储/票据服务构造期读取） ----
+  const port = options.http.port ?? (await freePort());
+  process.env.ASSET_URL_PUBLIC_BASE_URL ??= `http://127.0.0.1:${port}/api/files`;
+  process.env.EXPORT_DOWNLOAD_BASE_URL ??= `http://127.0.0.1:${port}/api`;
+
+  const app = await NestFactory.create(LocalCoreModule, { logger: false });
+  const dataSource = app.get(DataSource);
   patchSqliteDialect(dataSource);
 
+  const expressApp = app.getHttpAdapter().getInstance();
+  if (options.http.webDist != null) {
+    const { static: expressStatic } = await import('express');
+    expressApp.use(expressStatic(options.http.webDist));
+    // SPA 兜底：/api 交给 Nest 路由，其余 GET 回 index.html
+    expressApp.use(
+      (
+        req: { path: string; method: string },
+        res: { sendFile: (p: string) => void },
+        next: () => void,
+      ) => {
+        if (req.path.startsWith('/api') || req.method !== 'GET') {
+          next();
+          return;
+        }
+        res.sendFile(join(options.http!.webDist!, 'index.html'));
+      },
+    );
+  }
+  app.setGlobalPrefix('api');
+  app.useGlobalPipes(
+    new ValidationPipe({ whitelist: true, transform: true, stopAtFirstError: true }),
+  );
+  await app.listen(port, '127.0.0.1');
+
   return {
-    context,
+    context: app,
     dataSource,
-    get: <T>(cls: Type<T>): T => context.get(cls),
-    close: () => context.close(),
+    get: <T>(cls: Type<T>): T => app.get(cls),
+    close: () => app.close(),
+    httpUrl: `http://127.0.0.1:${port}`,
   };
 }
 

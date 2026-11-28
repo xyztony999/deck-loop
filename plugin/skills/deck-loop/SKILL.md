@@ -77,6 +77,7 @@ license: AGPL-3.0-only
 | deck_finalize / deck_unfinalize | 定稿 / 解锁 |
 | deck_archive / deck_restore / deck_delete | 归档 / 恢复 / 软删（仅 ARCHIVED；**删除须用户明确授权**） |
 | remote_connect / remote_disconnect / connection_status | 登录远程系统 / 回本地 / 查连接状态 |
+| manage_open | 打开图形管理站：local=内嵌本地网站（同库），remote=用户的 deck-loop 网站 |
 | asset_add / asset_list | 素材上传（本地路径）/ 列表 |
 | preview_deck | HTML 放映预览（不要求定稿） |
 | export_deck / export_list | 三格式导出（须 FINALIZED）/ 导出记录 |

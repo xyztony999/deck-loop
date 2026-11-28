@@ -11,7 +11,7 @@
  * （native，市场包默认 sqljs 不加载；仓库开发态才用）。
  */
 import { build } from 'esbuild';
-import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync, statSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,12 +47,18 @@ await build({
   logLevel: 'info',
 });
 
-// 2. wasm + playwright-core 随包
+// 2. wasm + playwright-core + web 管理站前端随包
 cpSync(join(root, 'node_modules/sql.js/dist/sql-wasm.wasm'), join(out, 'sql-wasm.wasm'));
 cpSync(join(root, 'node_modules/playwright-core'), join(out, 'node_modules/playwright-core'), {
   recursive: true,
   filter: (src) => !src.includes('.map') && !src.includes('README'),
 });
+const webDist = join(repo, 'web/dist');
+if (existsSync(webDist)) {
+  cpSync(webDist, join(out, 'web'), { recursive: true });
+} else {
+  console.warn('[marketplace] web/dist 不存在——manage_open 将不可用（先 cd web && pnpm build）');
+}
 
 // 3. plugin 清单（ZCode + Claude 双兼容）
 const pluginJson = {

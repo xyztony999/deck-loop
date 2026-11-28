@@ -46,4 +46,18 @@ export function registerAccountTools(server: McpServer, backend: SwitchableBacke
     },
     guarded(async () => ok(backend.status())),
   );
+
+  server.registerTool(
+    'manage_open',
+    {
+      description:
+        '打开图形管理站：local=内嵌本地网站（同一套 web 前端连本地库，127.0.0.1 绑定）；' +
+        'remote=你的 deck-loop 网站。用户要「网页上看/管理素材/浏览版本」时用它。' +
+        '默认自动开浏览器；本地站随 MCP 进程存活。',
+      inputSchema: {
+        open: z.boolean().default(true).describe('自动用系统浏览器打开'),
+      },
+    },
+    guarded(async (args) => ok(await backend.manageOpen(args.open ?? true))),
+  );
 }

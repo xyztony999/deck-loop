@@ -53,6 +53,11 @@ export class LocalBackend implements ToolBackend {
     private readonly paths: LocalPaths,
   ) {}
 
+  /** 本地管理站地址（createLocalCore 开 http 选项时有值；manage_open 消费） */
+  get httpUrl(): string | null {
+    return this.core.httpUrl;
+  }
+
   /* ---------------- deck ---------------- */
 
   async deckSave(ao: Record<string, unknown>): Promise<unknown> {

@@ -1,27 +1,21 @@
 {
   "name": "deck-loop",
-  "owner": {
-    "name": "xyztony999"
-  },
-  "metadata": {
-    "description": "deck-loop plugin marketplace (main repo as marketplace)",
-    "version": "0.2.1"
-  },
   "plugins": [
     {
       "name": "deck-loop",
       "source": {
         "source": "url",
         "type": "zip",
-        "url": "https://github.com/xyztony999/deck-loop/releases/download/v0.2.1/deck-loop-plugin-0.2.1.zip",
-        "sha256": "fbda7f3eae3de743563aed1f4e9b373e86fee9b9e7951720c4ef2189de57d56e"
+        "url": "https://github.com/xyztony999/deck-loop/releases/download/v0.2.2/deck-loop-plugin-0.2.2.zip",
+        "sha256": "27144948d5e516bcb4f0a67776a5ea6003e73c8aff1170e1a2cec4473a4ec70e",
+        "path": "deck-loop"
       },
-      "description": "Agent-driven deck creation: local (zero-server) or remote (login to your deck-loop account). Immutable version tree, targeted-adjust invariance, headless PDF/PNG/PPTX export. No API key — reasoning runs on your coding plan.",
+      "description": "Agent-driven slide decks: works locally out of the box, or sign in to your deck-loop account to sync with your website. Version management, asset library, PDF/image/PPT export.",
       "description_i18n": {
-        "en": "Agent-driven deck creation: local (zero-server) or remote (login to your deck-loop account). Immutable version tree, targeted-adjust invariance, headless PDF/PNG/PPTX export. No API key — reasoning runs on your coding plan.",
-        "zh-CN": "agent 驱动幻灯片创作：本地开箱即用或登录你的 deck-loop 账号远程同库。不可变版本树、定向调整不变性、headless PDF/PNG/PPTX 导出。零 API key——推理消耗你的 coding plan。"
+        "en": "Agent-driven slide decks: works locally out of the box, or sign in to your deck-loop account to sync with your website. Version management, asset library, PDF/image/PPT export.",
+        "zh-CN": "agent 驱动的幻灯片创作：本地开箱即用，或登录你的 deck-loop 账号与网站实时同步。版本管理、素材管理、PDF/图片/PPT 导出。"
       },
-      "version": "0.2.1",
+      "version": "0.2.2",
       "author": {
         "name": "deck-loop"
       },

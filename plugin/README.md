@@ -59,20 +59,32 @@ deck-loop 卡片点 **获取**（默认启用；更新在发现页重取）。�
 
 ### Cursor / Codex / 其它 MCP 客户端
 
-下载 Release 的 `deck-loop-plugin-<v>.zip` 解压，MCP 配置指向包内 `server.cjs`：
+MCP 配置直接用 npm 包（无需下载 zip）：
 
 ```json
 {
   "mcpServers": {
     "deck-loop": {
-      "command": "node",
-      "args": ["/绝对路径/deck-loop-plugin/server.cjs"]
+      "command": "npx",
+      "args": ["-y", "deck-loop-mcp"]
     }
   }
 }
 ```
 
-需 Node ≥ 20。导出 PDF/PNG 用系统浏览器（Edge/Chrome，playwright-core 自动探测）。
+- **Windows 的 Cursor/Codex 若启动失败**：`npx` 是 `.cmd` 脚本，部分客户端在
+  Windows 上无法直接 spawn，改为 `"command": "cmd", "args": ["/c", "npx", "-y", "deck-loop-mcp"]`。
+- **Codex CLI**（config.toml）：
+  ```toml
+  [mcp_servers.deck-loop]
+  command = "npx"
+  args = ["-y", "deck-loop-mcp"]
+  ```
+  （Windows 同上，command 用 `cmd`，args 前加 `/c`。）
+- 技能文件（可选）：把包内 `skills/deck-loop` 拷到 `~/.codex/skills/` 或
+  `.cursor/skills/`，agent 工作流引导更顺。
+- 需 Node ≥ 20。导出 PDF/PNG 用系统浏览器（Edge/Chrome 自动探测）。
+- 装好后对话里说「连接我的 deck-loop 系统」完成浏览器授权，或直接本地创作。
 
 ### 仓库内开发
 

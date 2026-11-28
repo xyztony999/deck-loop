@@ -65,10 +65,10 @@ const pluginJson = {
   name: 'deck-loop',
   version,
   description:
-    'Agent-driven deck creation: local (zero-server, sql.js) or remote (login to your deck-loop account, same DB as the web UI). Immutable version tree, targeted-adjust invariance, headless PDF/PNG/PPTX export.',
+    'Agent-driven slide decks: works locally out of the box, or sign in to your deck-loop account to sync with your website. Version management, asset library, PDF/image/PPT export.',
   description_i18n: {
-    en: 'Agent-driven deck creation: local (zero-server, sql.js) or remote (login to your deck-loop account, same DB as the web UI). Immutable version tree, targeted-adjust invariance, headless PDF/PNG/PPTX export.',
-    'zh-CN': 'agent 驱动幻灯片创作：本地开箱即用（sql.js）或登录你的 deck-loop 账号远程同库（与网站实时一致）。不可变版本树、定向调整不变性、headless PDF/PNG/PPTX 导出。',
+    en: 'Agent-driven slide decks: works locally out of the box, or sign in to your deck-loop account to sync with your website. Version management, asset library, PDF/image/PPT export.',
+    'zh-CN': 'agent 驱动的幻灯片创作：本地开箱即用，或登录你的 deck-loop 账号与网站实时同步。版本管理、素材管理、PDF/图片/PPT 导出。',
   },
   author: { name: 'deck-loop' },
   license: 'AGPL-3.0-only',
@@ -97,7 +97,7 @@ cpSync(join(repo, 'plugin/skills'), join(out, 'skills'), { recursive: true });
 cpSync(join(repo, 'plugin/commands'), join(out, 'commands'), { recursive: true });
 cpSync(join(repo, 'plugin/README.md'), join(out, 'README.md'));
 
-// 5. zip + sha256 + manifest
+// 5. zip（顶层包 deck-loop/ 目录——与 ZCode 官方市场 path 字段对齐）+ sha256 + manifest
 const zip = new JSZip();
 function addDir(dir, prefix = '') {
   for (const name of readdirSync(dir)) {
@@ -107,7 +107,7 @@ function addDir(dir, prefix = '') {
     else zip.file(rel, readFileSync(full));
   }
 }
-addDir(out);
+addDir(out, 'deck-loop');
 const zipName = `deck-loop-plugin-${version}.zip`;
 const zipBytes = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 writeFileSync(join(out, zipName), zipBytes);

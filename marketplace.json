@@ -14,7 +14,7 @@
         "source": "url",
         "type": "zip",
         "url": "https://github.com/xyztony999/deck-loop/releases/download/v0.2.0/deck-loop-plugin-0.2.0.zip",
-        "sha256": "033325249aa3bdd5bf19edb99e215a6ef40d81b9503d726238ce81945ceb5fe1"
+        "sha256": "168e659adae86d9ce4b4251de3387226037b95ec4ba2d8b1179804c1da31cc19"
       },
       "description": "Agent-driven deck creation: local (zero-server) or remote (login to your deck-loop account). Immutable version tree, targeted-adjust invariance, headless PDF/PNG/PPTX export. No API key — reasoning runs on your coding plan.",
       "description_i18n": {

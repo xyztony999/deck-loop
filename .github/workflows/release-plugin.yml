@@ -1,7 +1,8 @@
 name: Release Plugin
 
 # tag v* → 构建自包含插件 zip → GitHub Release 资产 → 回写 marketplace.json（sha256）
-# 主仓即市场：/plugin marketplace add xyztony999/deck-loop
+# 主仓即市场：ZCode 设置→插件管理→发现→+ 输入 xyztony999/deck-loop；
+# Claude Code /plugin marketplace add xyztony999/deck-loop
 
 on:
   push:
@@ -37,7 +38,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             mcp-server/dist-market/deck-loop-plugin-*.zip \
             --title "deck-loop plugin $GITHUB_REF_NAME" \
-            --notes "自包含双模式插件（local sql.js / remote 登录）。安装：/plugin marketplace add xyztony999/deck-loop → /plugin install deck-loop@deck-loop。详见 plugin/README.md。"
+            --notes "自包含双模式插件（local sql.js / remote 登录）。安装：ZCode 设置→插件管理→发现→+ 输入 xyztony999/deck-loop；Claude Code /plugin marketplace add xyztony999/deck-loop。Cursor/Codex 见 plugin/README.md（npx -y deck-loop-mcp）。"
       - name: 回写市场清单（url + sha256 + version）
         run: node mcp-server/scripts/update-marketplace.mjs
       - name: 提交清单回 main

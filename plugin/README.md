@@ -41,15 +41,20 @@ token → 存 `~/.deck-loop/config.json` → 切远程。**密码仅内存使用
 
 ## 安装
 
-### ZCode / Claude Code（市场，推荐）
+### ZCode（界面市场，推荐）
+
+设置 → 插件管理 → **发现** Tab → 点 **`+`** → 输入 `xyztony999/deck-loop` →
+deck-loop 卡片点 **获取**（默认启用；更新在发现页重取）。加 GitHub 源克隆失败时
+设置 `ZCODE_HTTP_PROXY=http://127.0.0.1:10808`（ZCode 只认这个变量）。
+
+### Claude Code（命令）
 
 ```
 /plugin marketplace add xyztony999/deck-loop
 /plugin install deck-loop@deck-loop
 ```
 
-更新：`/plugin marketplace update deck-loop` 后重装。市场清单指向 GitHub Release
-的自包含 zip（CI tag 自动构建发布，sha256 校验）。
+市场清单指向 GitHub Release 的自包含 zip（CI tag 自动构建发布，sha256 校验）。
 
 ### Cursor / Codex / 其它 MCP 客户端
 

@@ -32,12 +32,9 @@
 
 ## 安装插件（ZCode / Claude Code / Cursor / Codex）
 
-主仓即市场。ZCode / Claude Code：
-
-```
-/plugin marketplace add xyztony999/deck-loop
-/plugin install deck-loop@deck-loop
-```
+主仓即市场。**ZCode**：设置 → 插件管理 → **发现** Tab → 点 **`+`** → 输入
+`xyztony999/deck-loop` → deck-loop 卡片点 **获取**（默认启用；更新同页重取）。
+**Claude Code**：`/plugin marketplace add xyztony999/deck-loop` → `/plugin install deck-loop@deck-loop`。
 
 Cursor / Codex 等：下载 [Release](https://github.com/xyztony999/deck-loop/releases) 的
 `deck-loop-plugin-<v>.zip` 解压，MCP 配置指向包内 `server.cjs`（Node ≥ 20）。

@@ -51,6 +51,7 @@ jobs:
             --notes "自包含双模式插件（local sql.js / remote 浏览器授权登录）。安装：ZCode 设置→插件管理→发现→+ 输入 xyztony999/deck-loop；Claude Code /plugin marketplace add xyztony999/deck-loop；Cursor/Codex npx -y deck-loop-mcp。"
       # OIDC 发布放在 zip Release 之后：即使 npm 侧失败，zip 交付不受影响
       - name: npm 发布（Trusted Publishing OIDC）
+        continue-on-error: true
         run: cd mcp-server/dist-market && npm publish --access public
       - name: 回写市场清单（url + sha256 + version）
         run: node mcp-server/scripts/update-marketplace.mjs

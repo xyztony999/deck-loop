@@ -1,6 +1,6 @@
 {
   "name": "deck-loop",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Agent-driven slide decks: works locally out of the box, or sign in to your deck-loop account to sync with your website. Version management, asset library, PDF/image/PPT export.",
   "author": {
     "name": "deck-loop"

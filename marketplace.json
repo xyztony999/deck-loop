@@ -6,8 +6,8 @@
       "source": {
         "source": "url",
         "type": "zip",
-        "url": "https://github.com/xyztony999/deck-loop/releases/download/v0.2.3/deck-loop-plugin-0.2.3.zip",
-        "sha256": "d7a3fc450b19b54c4328a500f6703a0d03eecaaf212cebe8700b1b6e9777bc05",
+        "url": "https://github.com/xyztony999/deck-loop/releases/download/v0.2.4/deck-loop-plugin-0.2.4.zip",
+        "sha256": "72d77c2facaeb92f8efd652304fd1bcd1c5fc39965dd6234dd082f3df530b7bd",
         "path": "deck-loop"
       },
       "description": "Agent-driven slide decks: works locally out of the box, or sign in to your deck-loop account to sync with your website. Version management, asset library, PDF/image/PPT export.",
@@ -15,7 +15,7 @@
         "en": "Agent-driven slide decks: works locally out of the box, or sign in to your deck-loop account to sync with your website. Version management, asset library, PDF/image/PPT export.",
         "zh-CN": "agent 驱动的幻灯片创作：本地开箱即用，或登录你的 deck-loop 账号与网站实时同步。版本管理、素材管理、PDF/图片/PPT 导出。"
       },
-      "version": "0.2.3",
+      "version": "0.2.4",
       "author": {
         "name": "deck-loop"
       },

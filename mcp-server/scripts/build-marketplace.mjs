@@ -112,6 +112,27 @@ const zipName = `deck-loop-plugin-${version}.zip`;
 const zipBytes = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 writeFileSync(join(out, zipName), zipBytes);
 const sha256 = createHash('sha256').update(zipBytes).digest('hex');
+
+// 5.5 npm 发布面（zip 之后写，避免进插件包）：bin + playwright-core 转正依赖，
+// npm pack 自动排除 node_modules（playwright-core 从 registry 拉）
+writeFileSync(
+  join(out, 'package.json'),
+  JSON.stringify(
+    {
+      name: 'deck-loop-mcp',
+      version,
+      description: 'deck-loop MCP server — dual-mode (local sql.js / remote login), agent-driven deck creation (ADR-017/018/019)',
+      license: 'AGPL-3.0-only',
+      bin: { 'deck-loop-mcp': './server.cjs' },
+      files: ['server.cjs', 'sql-wasm.wasm', 'web/', 'README.md'],
+      dependencies: { 'playwright-core': '^1.49.0' },
+      engines: { node: '>=20' },
+      keywords: ['mcp', 'deck', 'presentation', 'pptx', 'slides', '幻灯片', '演示文稿'],
+    },
+    null,
+    2,
+  ) + '\n',
+);
 const manifest = {
   name: 'deck-loop',
   version,

@@ -79,6 +79,13 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '设置' },
   },
   {
+    // MCP 插件连接授权（?callback=&name=；未登录走守卫 /auth?redirect= 回跳）
+    path: '/connect',
+    name: 'connect',
+    component: () => import('@/views/connect/index.vue'),
+    meta: { title: '连接授权' },
+  },
+  {
     path: '/',
     redirect: '/deck',
   },

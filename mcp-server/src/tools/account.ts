@@ -13,19 +13,30 @@ export function registerAccountTools(server: McpServer, backend: SwitchableBacke
     'remote_connect',
     {
       description:
-        '连接远程 deck-loop 系统：用你自己的账号登录（apiUrl 如 https://host/api，邮箱+密码）→' +
-        '自动签发个人 API token 并保存 → 切换到远程模式（与网站同库实时）。' +
-        '密码仅本次内存使用，绝不落盘。需要向用户索取凭据——不要猜测。' +
-        '无服务端时改用本地模式（remote_disconnect 或默认即可，开箱即用）。',
+        '连接远程 deck-loop 系统（与网站同库实时）。**推荐：只传 apiUrl（浏览器授权）**——' +
+        '自动打开网站授权页，用户以自己账号（passkey/密码均可）确认，token 自动签发回传，' +
+        '凭据不进对话；工具会等待最长 120s，超时返回 loginUrl 可重试。' +
+        '备选：email+password 直连（密码仅内存使用不落盘）。' +
+        '需要向用户索取 apiUrl——不要猜测；无服务端时用本地模式（默认）。',
       inputSchema: {
         apiUrl: z.string().url().describe('deck-loop API 基址（含 /api 前缀）'),
-        email: z.string().email(),
-        password: z.string().min(1),
+        email: z.string().email().optional().describe('仅密码直连时需要'),
+        password: z.string().min(1).optional().describe('密码直连形态（缺省走浏览器授权）'),
+        open: z.boolean().default(true).describe('浏览器授权：自动打开授权页'),
       },
     },
     guarded(async (args) => {
-      const status = await backend.connectRemote(args.apiUrl, args.email, args.password);
-      return ok({ ...status, note: '已连接远程，后续创作直接进你的系统；网站可见' });
+      if (args.password != null && args.password.length > 0) {
+        if (args.email == null || args.email.length === 0) {
+          throw Object.assign(new Error('密码直连形态需要 email（或缺省 password 走浏览器授权）'), {
+            code: 'BIZ_AUTH_CREDENTIALS',
+          });
+        }
+        const status = await backend.connectRemote(args.apiUrl, args.email, args.password);
+        return ok({ ...status, note: '已连接远程，后续创作直接进你的系统；网站可见' });
+      }
+      const status = await backend.connectBrowser(args.apiUrl, args.open ?? true);
+      return ok(status);
     }),
   );
 

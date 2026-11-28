@@ -9,10 +9,11 @@ coding agent 出推理（消耗你的 coding plan），deck-loop 出确定性状
 - **远程**：与你的 deck-loop 系统（网站）同库实时。三种配置方式，优先级
   **env > config.json > 默认 local**：
 
-**① 对话式（所有工具通用，推荐）**：直接跟 agent 说「连接我的 deck-loop 系统」，
-agent 调 `remote_connect` 向你索取 apiUrl + 邮箱 + 密码 → 登录 → 自动签发个人
-token → 存 `~/.deck-loop/config.json` → 切远程。**密码仅内存使用，绝不落盘**。
-此后每次启动自动远程。`remote_disconnect` 回本地，`connection_status` 查状态。
+**① 浏览器授权（推荐，所有工具通用）**：跟 agent 说「连接我的 deck-loop 系统」或用
+`/deck-connect` 命令，只提供 API 基址 → 插件自动打开网站授权页 → 你在**自己系统上**
+登录确认（passkey 可用）→ token 自动回传本机。**凭据完全不进对话**。
+存 `~/.deck-loop/config.json`，此后每次启动自动远程。`remote_disconnect` 回本地，
+`connection_status` 查状态。
 
 **② MCP 配置 env 预置（Cursor / Codex / ZCode 高级）**：在工具的 MCP 配置 env
 字段填 `DECK_LOOP_API_URL`（如 `https://host/api`）+ `DECK_LOOP_API_TOKEN`

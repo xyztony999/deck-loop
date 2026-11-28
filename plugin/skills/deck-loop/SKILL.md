@@ -14,7 +14,11 @@ license: AGPL-3.0-only
 ## 连接模式（先确认再创作）
 
 - **本地模式（默认）**：开箱即用，sql.js 本地库（`~/.deck-loop/`），零服务端。适合个人/离线。
-- **远程模式**：登录用户自己的 deck-loop 系统，与网站同库实时。用 `remote_connect`（向用户索取 apiUrl + 邮箱 + 密码；密码仅内存使用不落盘）→ 自动签发 token 并切换。`connection_status` 查当前模式；`remote_disconnect` 回本地。
+- **远程模式**：登录用户自己的 deck-loop 系统，与网站同库实时。用 `remote_connect`
+  **只传 apiUrl（推荐，浏览器授权）**：插件自动打开网站授权页，用户以自己账号确认
+  （passkey 可用），token 自动回传——**凭据不进对话**；最长等 120s，超时把返回的
+  `loginUrl` 发给用户手动完成。备选：email+password 直连（密码仅内存不落盘）。
+  或让用户用 `/deck-connect` 命令发起。`connection_status` 查当前模式；`remote_disconnect` 回本地。
 - 开场先 `connection_status`；用户提到「我的系统/网站/账号」→ 引导 remote_connect；否则本地直接创作。
 
 ## 工作流

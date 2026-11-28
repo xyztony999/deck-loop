@@ -49,6 +49,14 @@ describe('双模式市场包（ADR-019）', () => {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ status: true, code: '0', msg: 'ok', data, timestamp: Date.now() }));
         };
+        // 模拟网站 /connect 授权页：自动确认并 302 回跳 loopback callback
+        if (req.url?.startsWith('/connect')) {
+          const u = new URL(req.url, 'http://mock');
+          const cb = u.searchParams.get('callback') ?? '';
+          res.writeHead(302, { Location: `${cb}?token=${ISSUED_TOKEN}` });
+          res.end();
+          return;
+        }
         if (req.url === '/auth/account/login') return ok({ token: 'session-x', nickname: 'Dual', syncCursor: 0 });
         if (req.url === '/auth/token/issue') return ok({ tokenId: 't1', tokenName: 'deck-loop-plugin', token: ISSUED_TOKEN, tokenPrefix: 'dlpat_dual', expiresAt: null, createdTime: new Date().toISOString() });
         if (req.url === '/deck/deck/save') return ok({ deckId: 'd-remote-1', deckCode: 'DL2611270001' });
@@ -175,6 +183,39 @@ describe('双模式市场包（ADR-019）', () => {
       delete process.env.DECK_LOOP_WEB_DIST;
     }
   }, 30000);
+
+  it('connectBrowser 浏览器授权流：网站 302 → loopback 回调 → 切 remote', async () => {
+    let loginUrl = '';
+    let resolveReady!: (u: string) => void;
+    const ready = new Promise<string>((r) => {
+      resolveReady = r;
+    });
+    const pending = backend.connectBrowser(baseUrl, false, 15000, (u) => {
+      loginUrl = u;
+      resolveReady(u);
+    });
+    const url = await ready;
+    expect(url).toContain('/connect?');
+    // 模拟用户在网站完成授权（mock 302 回跳 → 浏览器自动跟随）
+    await fetch(url);
+    const status = await pending;
+    expect(status.mode).toBe('remote');
+    const deck = await call('deck_create', { deckName: '浏览器授权远程', topic: 'x' });
+    expect(deck.deckId).toBe('d-remote-1');
+    const cfg = JSON.parse(readFileSync(join(paths.home, 'config.json'), 'utf8'));
+    expect(cfg.mode).toBe('remote');
+    expect(cfg.token).toBe(ISSUED_TOKEN);
+  });
+
+  it('connectBrowser 超时回退：返回 loginUrl 且不落盘切远程', async () => {
+    const b2 = new SwitchableBackend(paths, 'local');
+    const t = await b2.connectBrowser(baseUrl, false, 300);
+    expect(t.connected).toBe(false);
+    const login = String(t.loginUrl);
+    expect(login).toContain('/connect?');
+    expect(login).toContain(encodeURIComponent('http://127.0.0.1:')); // 回跳目标仅回环
+    await b2.close();
+  });
 
   it('env 预置优先于 config（工具 MCP 配置场景）', () => {
     process.env.DECK_LOOP_API_URL = baseUrl;

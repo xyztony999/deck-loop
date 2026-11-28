@@ -166,6 +166,87 @@ export class SwitchableBackend implements ToolBackend {
     return this.status();
   }
 
+  /**
+   * 浏览器授权登录（无密码形态，vercel-login 式；ADR-019 manage/连接 UX 追加）：
+   * 起 127.0.0.1 回环监听 → 打开网站 /connect 授权页（用户以自己账号登录/确认，
+   * passkey 照用）→ 网站签发个人 token 并 302 回跳 → 落盘切 remote。
+   * **凭据永不进入对话**；网站端强制 callback 仅回环（token 不外泄）。
+   *
+   * @param onLoginUrl 授权页链接回调（测试/agent 引导用）
+   */
+  async connectBrowser(
+    apiUrl: string,
+    open = true,
+    timeoutMs = 120000,
+    onLoginUrl?: (loginUrl: string) => void,
+  ): Promise<Record<string, unknown>> {
+    const base = apiUrl.replace(/\/+$/, '');
+    const site = base.replace(/\/api\/?$/, '');
+    const http = await import('node:http');
+    let resolveCallback!: (token: { token: string; expiresAt: number | null }) => void;
+    const callbackPromise = new Promise<{ token: string; expiresAt: number | null }>((resolve) => {
+      resolveCallback = resolve;
+    });
+    const server = http.createServer((req, res) => {
+      const u = new URL(req.url ?? '/', 'http://127.0.0.1');
+      const token = u.searchParams.get('token');
+      if (token == null || token.length === 0) {
+        res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('missing token');
+        return;
+      }
+      const expiresRaw = u.searchParams.get('expiresAt');
+      const expiresAt = expiresRaw != null && /^\d+$/.test(expiresRaw) ? Number(expiresRaw) : null;
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(
+        '<!doctype html><meta charset="utf-8"><title>deck-loop</title>' +
+          '<body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh">' +
+          '<div><h2>✅ 连接成功</h2><p>插件已连接你的 deck-loop 账号，可关闭本页返回 agent。</p></div>',
+      );
+      resolveCallback({ token, expiresAt });
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const { port } = server.address() as { port: number };
+    const loginUrl = `${site}/connect?name=${encodeURIComponent('deck-loop-plugin')}&callback=${encodeURIComponent(`http://127.0.0.1:${port}`)}`;
+    onLoginUrl?.(loginUrl);
+    if (open) {
+      openInBrowser(loginUrl);
+    }
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('connect timeout')), timeoutMs);
+    });
+    try {
+      const got = await Promise.race([callbackPromise, timeout]);
+      this.cfg = {
+        mode: 'remote',
+        apiUrl: base,
+        token: got.token,
+        tokenPrefix: got.token.slice(0, 10),
+        expiresAt: got.expiresAt,
+      };
+      saveConfig(this.paths, this.cfg);
+      this.remote = new RemoteClient({ apiUrl: base, apiToken: got.token });
+      return {
+        mode: 'remote',
+        apiUrl: base,
+        tokenPrefix: this.cfg.tokenPrefix,
+        note: '浏览器授权完成，已连接远程（与网站同库实时）',
+      };
+    } catch {
+      return {
+        connected: false,
+        loginUrl,
+        note: `${Math.round(timeoutMs / 1000)}s 内未完成授权；可重开链接继续，或重试 remote_connect`,
+      };
+    } finally {
+      if (timer != null) {
+        clearTimeout(timer);
+      }
+      server.close();
+    }
+  }
+
   status(): ConnectionStatus {
     return {
       mode: this.mode,
